@@ -1,0 +1,40 @@
+# .gitignore for Hexapod Project
+
+# PlatformIO
+.pio/
+.vscode/
+.clang_complete
+.gcc-flags.json
+
+# Build artifacts
+*.o
+*.exe
+*.elf
+*.bin
+
+# Webots
+webots/controllers/hexapod_controller/*.o
+webots/controllers/hexapod_controller/hexapod_controller.exe
+webots/controllers/hexapod_controller/build/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE
+*.swp
+*.swo
+*~
+.idea/
+
+# Dependencies
+.pioenvs
+.piolibdeps
+
+# Clang/Tooling
+.cache/
+compile_commands.json
+
+# C++ Dependencies
+*.d

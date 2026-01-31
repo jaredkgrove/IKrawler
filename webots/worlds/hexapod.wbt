@@ -1,0 +1,766 @@
+#VRML_SIM R2023b utf8
+
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/backgrounds/protos/TexturedBackground.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/backgrounds/protos/TexturedBackgroundLight.proto"
+EXTERNPROTO "https://raw.githubusercontent.com/cyberbotics/webots/R2023b/projects/objects/floors/protos/RectangleArena.proto"
+
+WorldInfo {
+  info [
+    "Hexapod Robot Simulation"
+  ]
+  title "Hexapod Robot"
+  basicTimeStep 16
+  contactProperties [
+    ContactProperties {
+      material1 "body"
+      material2 "floor"
+      coulombFriction [
+        0.8
+      ]
+    }
+  ]
+}
+
+Viewpoint {
+  orientation -0.3 0.25 0.92 1.8
+  position 0.4 -0.6 0.35
+  follow "hexapod"
+}
+
+TexturedBackground {
+}
+
+TexturedBackgroundLight {
+}
+
+RectangleArena {
+  floorSize 2 2
+  floorTileSize 0.5 0.5
+  wallHeight 0.1
+}
+
+DEF HEXAPOD Robot {
+  translation 0 0 0.08
+  rotation 0 0 1 0
+  children [
+    # Main body
+    DEF BODY Shape {
+      appearance PBRAppearance {
+        baseColor 0.2 0.2 0.8
+        metalness 0.3
+        roughness 0.7
+      }
+      geometry Box {
+        size 0.15 0.1 0.03
+      }
+    }
+    
+    # Front-Right leg (leg 0)
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        position 0
+        axis 0 0 1
+        anchor 0.06 -0.04 0
+      }
+      device [
+        RotationalMotor {
+          name "servo_0"
+          maxVelocity 5
+          maxTorque 10
+        }
+        PositionSensor {
+          name "pos_0"
+        }
+      ]
+      endPoint DEF COXA_FR Solid {
+        translation 0.06 -0.04 0
+        rotation 0 0 1 -0.785
+        children [
+          DEF COXA_SHAPE Shape {
+            appearance PBRAppearance {
+              baseColor 0.8 0.2 0.2
+              roughness 0.5
+            }
+            geometry Box {
+              size 0.03 0.02 0.02
+            }
+          }
+          Transform {
+            translation 0.015 0 0
+            children [
+              DEF COXA_VISUAL Shape {
+                appearance PBRAppearance {
+                  baseColor 0.8 0.2 0.2
+                  roughness 0.5
+                }
+                geometry Box {
+                  size 0.03 0.02 0.02
+                }
+              }
+            ]
+          }
+          HingeJoint {
+            jointParameters HingeJointParameters {
+              position 0
+              axis 0 1 0
+              anchor 0.02 0 0
+            }
+            device [
+              RotationalMotor {
+                name "servo_1"
+                maxVelocity 5
+                maxTorque 10
+              }
+              PositionSensor {
+                name "pos_1"
+              }
+            ]
+            endPoint DEF FEMUR_FR Solid {
+              translation 0.02 0 0
+              rotation 0 1 0 0
+              children [
+                Transform {
+                  translation 0.03 0 0
+                  children [
+                    DEF FEMUR_SHAPE Shape {
+                      appearance PBRAppearance {
+                        baseColor 0.2 0.8 0.2
+                        roughness 0.5
+                      }
+                      geometry Box {
+                        size 0.06 0.015 0.015
+                      }
+                    }
+                  ]
+                }
+                HingeJoint {
+                  jointParameters HingeJointParameters {
+                    position 0
+                    axis 0 1 0
+                    anchor 0.06 0 0
+                  }
+                  device [
+                    RotationalMotor {
+                      name "servo_2"
+                      maxVelocity 5
+                      maxTorque 10
+                    }
+                    PositionSensor {
+                      name "pos_2"
+                    }
+                  ]
+                  endPoint DEF TIBIA_FR Solid {
+                    translation 0.06 0 0
+                    rotation 0 1 0 0
+                    children [
+                      DEF TIBIA_SHAPE Shape {
+                        appearance PBRAppearance {
+                          baseColor 0.8 0.8 0.2
+                          roughness 0.5
+                        }
+                        geometry Box {
+                          size 0.08 0.012 0.012
+                        }
+                      }
+                      DEF FOOT Transform {
+                        translation 0.04 0 0
+                        children [
+                          Shape {
+                            appearance PBRAppearance {
+                              baseColor 0.1 0.1 0.1
+                              roughness 0.9
+                            }
+                            geometry Sphere {
+                              radius 0.008
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                    contactMaterial "body"
+                    boundingObject USE TIBIA_SHAPE
+                    physics Physics {
+                      density -1
+                      mass 0.01
+                    }
+                  }
+                }
+              ]
+              contactMaterial "body"
+              boundingObject Transform {
+                translation 0.03 0 0
+                children [
+                  USE FEMUR_SHAPE
+                ]
+              }
+              physics Physics {
+                density -1
+                mass 0.02
+              }
+            }
+          }
+        ]
+        contactMaterial "body"
+        boundingObject USE COXA_SHAPE
+        physics Physics {
+          density -1
+          mass 0.015
+        }
+      }
+    }
+    
+    # Front-Left leg (leg 1)
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        position 0
+        axis 0 0 1
+        anchor 0.06 0.04 0
+      }
+      device [
+        RotationalMotor {
+          name "servo_3"
+          maxVelocity 5
+          maxTorque 10
+        }
+        PositionSensor {
+          name "pos_3"
+        }
+      ]
+      endPoint DEF COXA_FL Solid {
+        translation 0.06 0.04 0
+        rotation 0 0 1 0.785
+        children [
+          USE COXA_SHAPE
+          Transform {
+            translation 0.015 0 0
+            children [
+              USE COXA_VISUAL
+            ]
+          }
+          HingeJoint {
+            jointParameters HingeJointParameters {
+              position 0
+              axis 0 1 0
+              anchor 0.02 0 0
+            }
+            device [
+              RotationalMotor {
+                name "servo_4"
+                maxVelocity 5
+                maxTorque 10
+              }
+              PositionSensor {
+                name "pos_4"
+              }
+            ]
+            endPoint DEF FEMUR_FL Solid {
+              translation 0.02 0 0
+              rotation 0 1 0 0
+              children [
+                Transform {
+                  translation 0.03 0 0
+                  children [
+                    USE FEMUR_SHAPE
+                  ]
+                }
+                HingeJoint {
+                  jointParameters HingeJointParameters {
+                    position 0
+                    axis 0 1 0
+                    anchor 0.06 0 0
+                  }
+                  device [
+                    RotationalMotor {
+                      name "servo_5"
+                      maxVelocity 5
+                      maxTorque 10
+                    }
+                    PositionSensor {
+                      name "pos_5"
+                    }
+                  ]
+                  endPoint DEF TIBIA_FL Solid {
+                    translation 0.06 0 0
+                    rotation 0 1 0 0
+                    children [
+                      USE TIBIA_SHAPE
+                      USE FOOT
+                    ]
+                    contactMaterial "body"
+                    boundingObject USE TIBIA_SHAPE
+                    physics Physics {
+                      density -1
+                      mass 0.01
+                    }
+                  }
+                }
+              ]
+              contactMaterial "body"
+              boundingObject Transform {
+                translation 0.03 0 0
+                children [
+                  USE FEMUR_SHAPE
+                ]
+              }
+              physics Physics {
+                density -1
+                mass 0.02
+              }
+            }
+          }
+        ]
+        contactMaterial "body"
+        boundingObject USE COXA_SHAPE
+        physics Physics {
+          density -1
+          mass 0.015
+        }
+      }
+    }
+    
+    # Mid-Right leg (leg 2)
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        position 0
+        axis 0 0 1
+        anchor 0 -0.04 0
+      }
+      device [
+        RotationalMotor {
+          name "servo_6"
+          maxVelocity 5
+          maxTorque 10
+        }
+        PositionSensor {
+          name "pos_6"
+        }
+      ]
+      endPoint DEF COXA_MR Solid {
+        translation 0 -0.04 0
+        rotation 0 0 1 -1.571
+        children [
+          USE COXA_SHAPE
+          Transform {
+            translation 0.015 0 0
+            children [
+              USE COXA_VISUAL
+            ]
+          }
+          HingeJoint {
+            jointParameters HingeJointParameters {
+              position 0
+              axis 0 1 0
+              anchor 0.02 0 0
+            }
+            device [
+              RotationalMotor {
+                name "servo_7"
+                maxVelocity 5
+                maxTorque 10
+              }
+              PositionSensor {
+                name "pos_7"
+              }
+            ]
+            endPoint DEF FEMUR_MR Solid {
+              translation 0.02 0 0
+              rotation 0 1 0 0
+              children [
+                Transform {
+                  translation 0.03 0 0
+                  children [
+                    USE FEMUR_SHAPE
+                  ]
+                }
+                HingeJoint {
+                  jointParameters HingeJointParameters {
+                    position 0
+                    axis 0 1 0
+                    anchor 0.06 0 0
+                  }
+                  device [
+                    RotationalMotor {
+                      name "servo_8"
+                      maxVelocity 5
+                      maxTorque 10
+                    }
+                    PositionSensor {
+                      name "pos_8"
+                    }
+                  ]
+                  endPoint DEF TIBIA_MR Solid {
+                    translation 0.06 0 0
+                    rotation 0 1 0 0
+                    children [
+                      USE TIBIA_SHAPE
+                      USE FOOT
+                    ]
+                    contactMaterial "body"
+                    boundingObject USE TIBIA_SHAPE
+                    physics Physics {
+                      density -1
+                      mass 0.01
+                    }
+                  }
+                }
+              ]
+              contactMaterial "body"
+              boundingObject Transform {
+                translation 0.03 0 0
+                children [
+                  USE FEMUR_SHAPE
+                ]
+              }
+              physics Physics {
+                density -1
+                mass 0.02
+              }
+            }
+          }
+        ]
+        contactMaterial "body"
+        boundingObject USE COXA_SHAPE
+        physics Physics {
+          density -1
+          mass 0.015
+        }
+      }
+    }
+    
+    # Mid-Left leg (leg 3)
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        position 0
+        axis 0 0 1
+        anchor 0 0.04 0
+      }
+      device [
+        RotationalMotor {
+          name "servo_9"
+          maxVelocity 5
+          maxTorque 10
+        }
+        PositionSensor {
+          name "pos_9"
+        }
+      ]
+      endPoint DEF COXA_ML Solid {
+        translation 0 0.04 0
+        rotation 0 0 1 1.571
+        children [
+          USE COXA_SHAPE
+          Transform {
+            translation 0.015 0 0
+            children [
+              USE COXA_VISUAL
+            ]
+          }
+          HingeJoint {
+            jointParameters HingeJointParameters {
+              position 0
+              axis 0 1 0
+              anchor 0.02 0 0
+            }
+            device [
+              RotationalMotor {
+                name "servo_10"
+                maxVelocity 5
+                maxTorque 10
+              }
+              PositionSensor {
+                name "pos_10"
+              }
+            ]
+            endPoint DEF FEMUR_ML Solid {
+              translation 0.02 0 0
+              rotation 0 1 0 0
+              children [
+                Transform {
+                  translation 0.03 0 0
+                  children [
+                    USE FEMUR_SHAPE
+                  ]
+                }
+                HingeJoint {
+                  jointParameters HingeJointParameters {
+                    position 0
+                    axis 0 1 0
+                    anchor 0.06 0 0
+                  }
+                  device [
+                    RotationalMotor {
+                      name "servo_11"
+                      maxVelocity 5
+                      maxTorque 10
+                    }
+                    PositionSensor {
+                      name "pos_11"
+                    }
+                  ]
+                  endPoint DEF TIBIA_ML Solid {
+                    translation 0.06 0 0
+                    rotation 0 1 0 0
+                    children [
+                      USE TIBIA_SHAPE
+                      USE FOOT
+                    ]
+                    contactMaterial "body"
+                    boundingObject USE TIBIA_SHAPE
+                    physics Physics {
+                      density -1
+                      mass 0.01
+                    }
+                  }
+                }
+              ]
+              contactMaterial "body"
+              boundingObject Transform {
+                translation 0.03 0 0
+                children [
+                  USE FEMUR_SHAPE
+                ]
+              }
+              physics Physics {
+                density -1
+                mass 0.02
+              }
+            }
+          }
+        ]
+        contactMaterial "body"
+        boundingObject USE COXA_SHAPE
+        physics Physics {
+          density -1
+          mass 0.015
+        }
+      }
+    }
+    
+    # Rear-Right leg (leg 4)
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        position 0
+        axis 0 0 1
+        anchor -0.06 -0.04 0
+      }
+      device [
+        RotationalMotor {
+          name "servo_12"
+          maxVelocity 5
+          maxTorque 10
+        }
+        PositionSensor {
+          name "pos_12"
+        }
+      ]
+      endPoint DEF COXA_RR Solid {
+        translation -0.06 -0.04 0
+        rotation 0 0 1 -2.356
+        children [
+          USE COXA_SHAPE
+          Transform {
+            translation 0.015 0 0
+            children [
+              USE COXA_VISUAL
+            ]
+          }
+          HingeJoint {
+            jointParameters HingeJointParameters {
+              position 0
+              axis 0 1 0
+              anchor 0.02 0 0
+            }
+            device [
+              RotationalMotor {
+                name "servo_13"
+                maxVelocity 5
+                maxTorque 10
+              }
+              PositionSensor {
+                name "pos_13"
+              }
+            ]
+            endPoint DEF FEMUR_RR Solid {
+              translation 0.02 0 0
+              rotation 0 1 0 0
+              children [
+                Transform {
+                  translation 0.03 0 0
+                  children [
+                    USE FEMUR_SHAPE
+                  ]
+                }
+                HingeJoint {
+                  jointParameters HingeJointParameters {
+                    position 0
+                    axis 0 1 0
+                    anchor 0.06 0 0
+                  }
+                  device [
+                    RotationalMotor {
+                      name "servo_14"
+                      maxVelocity 5
+                      maxTorque 10
+                    }
+                    PositionSensor {
+                      name "pos_14"
+                    }
+                  ]
+                  endPoint DEF TIBIA_RR Solid {
+                    translation 0.06 0 0
+                    rotation 0 1 0 0
+                    children [
+                      USE TIBIA_SHAPE
+                      USE FOOT
+                    ]
+                    contactMaterial "body"
+                    boundingObject USE TIBIA_SHAPE
+                    physics Physics {
+                      density -1
+                      mass 0.01
+                    }
+                  }
+                }
+              ]
+              contactMaterial "body"
+              boundingObject Transform {
+                translation 0.03 0 0
+                children [
+                  USE FEMUR_SHAPE
+                ]
+              }
+              physics Physics {
+                density -1
+                mass 0.02
+              }
+            }
+          }
+        ]
+        contactMaterial "body"
+        boundingObject USE COXA_SHAPE
+        physics Physics {
+          density -1
+          mass 0.015
+        }
+      }
+    }
+    
+    # Rear-Left leg (leg 5)
+    HingeJoint {
+      jointParameters HingeJointParameters {
+        position 0
+        axis 0 0 1
+        anchor -0.06 0.04 0
+      }
+      device [
+        RotationalMotor {
+          name "servo_15"
+          maxVelocity 5
+          maxTorque 10
+        }
+        PositionSensor {
+          name "pos_15"
+        }
+      ]
+      endPoint DEF COXA_RL Solid {
+        translation -0.06 0.04 0
+        rotation 0 0 1 2.356
+        children [
+          USE COXA_SHAPE
+          Transform {
+            translation 0.015 0 0
+            children [
+              USE COXA_VISUAL
+            ]
+          }
+          HingeJoint {
+            jointParameters HingeJointParameters {
+              position 0
+              axis 0 1 0
+              anchor 0.02 0 0
+            }
+            device [
+              RotationalMotor {
+                name "servo_16"
+                maxVelocity 5
+                maxTorque 10
+              }
+              PositionSensor {
+                name "pos_16"
+              }
+            ]
+            endPoint DEF FEMUR_RL Solid {
+              translation 0.02 0 0
+              rotation 0 1 0 0
+              children [
+                Transform {
+                  translation 0.03 0 0
+                  children [
+                    USE FEMUR_SHAPE
+                  ]
+                }
+                HingeJoint {
+                  jointParameters HingeJointParameters {
+                    position 0
+                    axis 0 1 0
+                    anchor 0.06 0 0
+                  }
+                  device [
+                    RotationalMotor {
+                      name "servo_17"
+                      maxVelocity 5
+                      maxTorque 10
+                    }
+                    PositionSensor {
+                      name "pos_17"
+                    }
+                  ]
+                  endPoint DEF TIBIA_RL Solid {
+                    translation 0.06 0 0
+                    rotation 0 1 0 0
+                    children [
+                      USE TIBIA_SHAPE
+                      USE FOOT
+                    ]
+                    contactMaterial "body"
+                    boundingObject USE TIBIA_SHAPE
+                    physics Physics {
+                      density -1
+                      mass 0.01
+                    }
+                  }
+                }
+              ]
+              contactMaterial "body"
+              boundingObject Transform {
+                translation 0.03 0 0
+                children [
+                  USE FEMUR_SHAPE
+                ]
+              }
+              physics Physics {
+                density -1
+                mass 0.02
+              }
+            }
+          }
+        ]
+        contactMaterial "body"
+        boundingObject USE COXA_SHAPE
+        physics Physics {
+          density -1
+          mass 0.015
+        }
+      }
+    }
+  ]
+  name "hexapod"
+  contactMaterial "body"
+  boundingObject USE BODY
+  physics Physics {
+    density -1
+    mass 0.2
+  }
+  controller "hexapod_controller"
+}
+
