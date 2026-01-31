@@ -57,6 +57,7 @@ public:
   /**
    * @brief Get the leg configuration
    */
+  static constexpr float PI = 3.14159265359f;
   const LegConfig &getConfig() const { return config_; }
 
 private:

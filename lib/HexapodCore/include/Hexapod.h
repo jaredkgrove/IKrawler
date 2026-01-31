@@ -36,9 +36,9 @@ public:
 
   // Gait states
   enum GaitState {
-    IDLE,    // Not moving
-    WALKING, // Walking forward
-    STOPPING // Transitioning to stop
+    IDLE,        // Not moving
+    TRIPOD_WALK, // Tripod gait walking
+    STOPPING     // Transitioning to stop
   };
 
   // Hip mount configuration
@@ -133,7 +133,7 @@ public:
   /**
    * @brief Start walking forward
    */
-  void walk();
+  void tripod_walk();
 
   /**
    * @brief Stop walking (return to standing)
@@ -172,6 +172,7 @@ private:
   // Standing foot position (hip-local)
   static constexpr float STAND_REACH = 0.12f;   // Outward from hip
   static constexpr float STAND_HEIGHT = -0.06f; // Below hip
+  static constexpr float REST_HEIGHT = -0.03f;  // Lowered body position
 
   // Gait control
   GaitState gaitState_ = IDLE;
@@ -184,8 +185,8 @@ private:
   static constexpr float STAND_TIBIA = 165.0f;
 
   // Gait parameters
-  static constexpr float STRIDE_LENGTH = 20.0f; // Hip swing in degrees
-  static constexpr float LIFT_HEIGHT = 15.0f;   // Femur lift in degrees
+  static constexpr float STRIDE_LENGTH = 0.04f; // Stride length in meters
+  static constexpr float LIFT_HEIGHT = 0.03f;   // Foot lift height in meters
 
   // Tripod groups
   static constexpr int GROUP_A[3] = {FRONT_RIGHT, MIDDLE_LEFT, REAR_RIGHT};
@@ -198,6 +199,9 @@ private:
 
   // Apply gait to a single leg
   void applyGaitToLeg(int leg, float phase);
+
+  // Update tripod gait
+  void updateTripodGait();
 
   // Initialize hip mount configurations
   void initHipMounts();

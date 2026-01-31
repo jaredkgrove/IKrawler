@@ -3,9 +3,9 @@
 
 LegIK::LegIK(const LegConfig &config) : config_(config) {}
 
-float LegIK::radToDeg(float rad) { return rad * 180.0f / 3.14159265f; }
+float LegIK::radToDeg(float rad) { return rad * 180.0f / PI; }
 
-float LegIK::degToRad(float deg) { return deg * 3.14159265f / 180.0f; }
+float LegIK::degToRad(float deg) { return deg * PI / 180.0f; }
 
 LegIK::JointAngles LegIK::solve(const FootPosition &target) const {
   JointAngles result;
@@ -77,8 +77,8 @@ LegIK::JointAngles LegIK::solve(const FootPosition &target) const {
 
   // Step 5: Calculate tibia angle
   // Tibia angle relative to femur
-  float tibiaRelativeRad = 3.14159265f - kneeAngleRad; // External angle
-  result.tibia = 90.0f + radToDeg(tibiaRelativeRad);   // Convert to servo angle
+  float tibiaRelativeRad = PI - kneeAngleRad;        // External angle
+  result.tibia = 90.0f + radToDeg(tibiaRelativeRad); // Convert to servo angle
 
   result.valid = true;
   return result;

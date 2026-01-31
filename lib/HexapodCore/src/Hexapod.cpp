@@ -100,19 +100,19 @@ void Hexapod::initHipMounts() {
   // Body coordinate system: X = forward, Y = left, Z = up
   // Angles: 0 = pointing forward, positive = counterclockwise
 
-  const float PI = 3.14159265f;
-
   // Front legs: x = 0.06, y = ±0.04, angle = ±45°
-  hipMounts_[FRONT_RIGHT] = HipMount(0.06f, -0.04f, -PI / 4.0f); // -45°
-  hipMounts_[FRONT_LEFT] = HipMount(0.06f, 0.04f, PI / 4.0f);    // +45°
+  hipMounts_[FRONT_RIGHT] = HipMount(0.06f, -0.04f, -LegIK::PI / 4.0f); // -45°
+  hipMounts_[FRONT_LEFT] = HipMount(0.06f, 0.04f, LegIK::PI / 4.0f);    // +45°
 
   // Middle legs: x = 0, y = ±0.04, angle = ±90°
-  hipMounts_[MIDDLE_RIGHT] = HipMount(0.0f, -0.04f, -PI / 2.0f); // -90°
-  hipMounts_[MIDDLE_LEFT] = HipMount(0.0f, 0.04f, PI / 2.0f);    // +90°
+  hipMounts_[MIDDLE_RIGHT] = HipMount(0.0f, -0.04f, -LegIK::PI / 2.0f); // -90°
+  hipMounts_[MIDDLE_LEFT] = HipMount(0.0f, 0.04f, LegIK::PI / 2.0f);    // +90°
 
   // Rear legs: x = -0.06, y = ±0.04, angle = ±135°
-  hipMounts_[REAR_RIGHT] = HipMount(-0.06f, -0.04f, -3.0f * PI / 4.0f); // -135°
-  hipMounts_[REAR_LEFT] = HipMount(-0.06f, 0.04f, 3.0f * PI / 4.0f);    // +135°
+  hipMounts_[REAR_RIGHT] =
+      HipMount(-0.06f, -0.04f, -3.0f * LegIK::PI / 4.0f); // -135°
+  hipMounts_[REAR_LEFT] =
+      HipMount(-0.06f, 0.04f, 3.0f * LegIK::PI / 4.0f); // +135°
 
   // Compute default foot positions in body frame
   // Each foot extends STAND_REACH from hip at the hip's angle
@@ -184,7 +184,7 @@ bool Hexapod::setBodyPose(float x, float y, float z, float roll, float pitch,
 
 void Hexapod::stand() {
   gaitState_ = IDLE;
-  // Standing position using inverse kinematics
+  // Standing position
   // Foot position: x = outward reach, y = 0 (centered), z = height below hip
   const float standX = 0.12f;  // Outward from hip
   const float standY = 0.0f;   // Centered (no forward/back offset)
@@ -199,21 +199,19 @@ void Hexapod::rest() {
   gaitState_ = IDLE;
   // Resting position - body lowered
   for (int leg = 0; leg < NUM_LEGS; leg++) {
-    setServo(leg, COXA, 90);  // Hips neutral
-    setServo(leg, FEMUR, 90); // Thighs horizontal
-    setServo(leg, TIBIA, 90); // Shins horizontal (body on ground)
+    setFootPosition(leg, STAND_REACH, 0.0f, REST_HEIGHT);
   }
 }
 
-void Hexapod::walk() {
-  if (gaitState_ != WALKING) {
-    gaitState_ = WALKING;
+void Hexapod::tripod_walk() {
+  if (gaitState_ != TRIPOD_WALK) {
+    gaitState_ = TRIPOD_WALK;
     gaitPhase_ = 0.0f;
   }
 }
 
 void Hexapod::stop() {
-  if (gaitState_ == WALKING) {
+  if (gaitState_ == TRIPOD_WALK) {
     gaitState_ = STOPPING;
   }
 }
@@ -222,42 +220,41 @@ void Hexapod::applyGaitToLeg(int leg, float phase) {
   // Phase 0.0-0.5: Leg is in swing (lifted, moving forward)
   // Phase 0.5-1.0: Leg is in stance (on ground, pushing back)
 
-  float coxaAngle = STAND_COXA;
-  float femurAngle = STAND_FEMUR;
-  float tibiaAngle = STAND_TIBIA;
-
-  // Determine if this is a left-side leg (needs inverted coxa motion)
-  // Left legs: FRONT_LEFT(1), MIDDLE_LEFT(3), REAR_LEFT(5) - odd numbers
-  bool isLeftSide =
-      (leg == FRONT_LEFT || leg == MIDDLE_LEFT || leg == REAR_LEFT);
-  float coxaDirection = isLeftSide ? -1.0f : 1.0f;
+  // Deltas relative to neutral position in Body Frame
+  float deltaX = 0.0f; // Forward/Backward
+  float deltaY = 0.0f; // Left/Right (not used for straight walking)
+  float deltaZ = 0.0f; // Up/Down (Lift)
 
   if (phase < 0.5f) {
     // Swing phase: leg lifted and moving forward
     float swingProgress = phase / 0.5f; // 0 to 1 during swing
 
-    // Lift the leg (decrease femur angle = lift up)
-    float liftAmount = std::sin(swingProgress * 3.14159f) * LIFT_HEIGHT;
-    femurAngle = STAND_FEMUR - liftAmount;
+    // Lift the leg (sine wave)
+    deltaZ = std::sin(swingProgress * LegIK::PI) * LIFT_HEIGHT;
 
-    // Swing hip forward (interpolate from back to front)
-    float hipOffset = -STRIDE_LENGTH / 2.0f + swingProgress * STRIDE_LENGTH;
-    coxaAngle = STAND_COXA + hipOffset * coxaDirection;
+    // Move foot forward relative to body (X-axis)
+    // Start at -STRIDE/2, End at +STRIDE/2
+    deltaX = -STRIDE_LENGTH / 2.0f + swingProgress * STRIDE_LENGTH;
   } else {
     // Stance phase: leg on ground, pushing back
     float stanceProgress = (phase - 0.5f) / 0.5f; // 0 to 1 during stance
 
     // Keep leg on ground
-    femurAngle = STAND_FEMUR;
+    deltaZ = 0.0f;
 
-    // Push hip backward (interpolate from front to back)
-    float hipOffset = STRIDE_LENGTH / 2.0f - stanceProgress * STRIDE_LENGTH;
-    coxaAngle = STAND_COXA + hipOffset * coxaDirection;
+    // Move foot backward relative to body (X-axis) to propel body forward
+    // Start at +STRIDE/2, End at -STRIDE/2
+    deltaX = STRIDE_LENGTH / 2.0f - stanceProgress * STRIDE_LENGTH;
   }
 
-  setServo(leg, COXA, coxaAngle);
-  setServo(leg, FEMUR, femurAngle);
-  setServo(leg, TIBIA, tibiaAngle);
+  // Calculate target position in Body Frame
+  // Start from the default neutral position for this leg
+  float targetX = defaultFootPos_[leg].x + deltaX;
+  float targetY = defaultFootPos_[leg].y + deltaY;
+  float targetZ = defaultFootPos_[leg].z + deltaZ;
+
+  // Utilize Body coordinates to ensure straight-line motion parallel to body
+  setFootPositionBody(leg, targetX, targetY, targetZ);
 }
 
 void Hexapod::update(float deltaTime) {
@@ -281,6 +278,12 @@ void Hexapod::update(float deltaTime) {
     return;
   }
 
+  if (gaitState_ == TRIPOD_WALK) {
+    updateTripodGait();
+  }
+}
+
+void Hexapod::updateTripodGait() {
   // Tripod gait: Group A and Group B are 180 degrees out of phase
   float phaseA = gaitPhase_;
   float phaseB = gaitPhase_ + 0.5f;
