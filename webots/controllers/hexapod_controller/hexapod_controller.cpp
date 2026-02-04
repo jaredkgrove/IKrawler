@@ -47,23 +47,34 @@ int main(int argc, char **argv) {
   }
 
   // hexapod.rest();
-  hexapod.tripod_walk();
+
+  // Set up for differential steering demo
+  hexapod.setStrideLength(0.06f); // Stride length
+  hexapod.setGaitSpeed(1.5f);     // Gait speed
+  hexapod.setTurnRate(0.0f);      // Start going straight
+  hexapod.walk();                 // Start walking (heading/turnRate set above)
+
   double lastTime = robot->getTime();
-  double loopStartTime = lastTime;
-  bool hasStood = false;
+  // double loopStartTime = lastTime;
+  float turnRate = 1.0f;
+  hexapod.setTurnRate(turnRate);
   while (robot->step(timeStep) != -1) {
-    // Calculate delta time
     double currentTime = robot->getTime();
+    // Calculate delta time
     float deltaTime = static_cast<float>(currentTime - lastTime);
     lastTime = currentTime;
 
     // Update hexapod logic
     hexapod.update(deltaTime);
 
-    if (!hasStood && currentTime - loopStartTime > 2.0) {
-      hexapod.stand();
-      hasStood = true;
-    }
+    // if (currentTime - loopStartTime > 2.0) {
+    //   // Gradually increase turn rate to demonstrate differential steering
+    //   turnRate += 0.05f;
+    //   if (turnRate > 0.4f)
+    //     turnRate = 0.4f; // Wrap around
+    //   hexapod.setTurnRate(turnRate);
+    //   loopStartTime = robot->getTime();
+    // }
   }
 
   delete robot;

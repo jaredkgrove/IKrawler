@@ -131,9 +131,33 @@ public:
   void rest();
 
   /**
-   * @brief Start walking forward
+   * @brief Start walking with direction and turn control
    */
-  void tripod_walk();
+  void walk();
+
+  /**
+   * @brief Set movement heading (direction of travel)
+   * @param headingDeg Heading in degrees (0=forward, 90=left, -90=right)
+   */
+  void setHeading(float headingDeg);
+
+  /**
+   * @brief Set turn rate for rotation
+   * @param turnRate Rotation rate (-1.0 to 1.0, positive=turn left)
+   */
+  void setTurnRate(float turnRate);
+
+  /**
+   * @brief Set stride length for gait
+   * @param length Stride length in meters (clamped to MIN/MAX)
+   */
+  void setStrideLength(float length);
+
+  /**
+   * @brief Set gait speed (cycle frequency)
+   * @param speed Gait cycles per second
+   */
+  void setGaitSpeed(float speed);
 
   /**
    * @brief Stop walking (return to standing)
@@ -179,13 +203,23 @@ private:
   float gaitPhase_ = 0.0f; // 0.0 to 1.0, cycles through gait
   float gaitSpeed_ = 1.0f; // Cycles per second
 
+  // Movement control
+  float heading_ = 0.0f;  // Direction of travel in radians (0=forward)
+  float turnRate_ = 0.0f; // Rotation rate (-1.0 to 1.0, differential steering)
+  float strideLength_ = 0.04f; // Stride length in meters
+
   // Standing pose (used as reference for gait)
   static constexpr float STAND_COXA = 90.0f;
   static constexpr float STAND_FEMUR = 75.0f;
   static constexpr float STAND_TIBIA = 165.0f;
 
   // Gait parameters
-  static constexpr float STRIDE_LENGTH = 0.04f; // Stride length in meters
+  static constexpr float MIN_STRIDE_LENGTH =
+      0.04f; // Minimum stride (low speed)
+  static constexpr float MAX_STRIDE_LENGTH =
+      0.08f;                                    // Maximum stride (high speed)
+  static constexpr float MIN_GAIT_SPEED = 0.5f; // Minimum gait cycles/sec
+  static constexpr float MAX_GAIT_SPEED = 2.0f; // Maximum gait cycles/sec
   static constexpr float LIFT_HEIGHT = 0.03f;   // Foot lift height in meters
 
   // Tripod groups
@@ -201,7 +235,7 @@ private:
   void applyGaitToLeg(int leg, float phase);
 
   // Update tripod gait
-  void updateTripodGait();
+  void updateWalkGait();
 
   // Initialize hip mount configurations
   void initHipMounts();

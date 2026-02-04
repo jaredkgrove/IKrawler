@@ -43,24 +43,25 @@ DEF HEXAPOD Robot {
   translation 0 0 0.08
   rotation 0 0 1 0
   children [
-    # Main body
+    # Main body - Cylindrical for symmetric radial design
     DEF BODY Shape {
       appearance PBRAppearance {
         baseColor 0.2 0.2 0.8
         metalness 0.3
         roughness 0.7
       }
-      geometry Box {
-        size 0.15 0.1 0.03
+      geometry Cylinder {
+        radius 0.045
+        height 0.03
       }
     }
     
-    # Front-Right leg (leg 0)
+    # Front-Right leg (leg 0) - angle: -30°
     HingeJoint {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor 0.06 -0.04 0
+        anchor 0.0433 -0.025 0
       }
       device [
         RotationalMotor {
@@ -73,8 +74,8 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_FR Solid {
-        translation 0.06 -0.04 0
-        rotation 0 0 1 -0.785
+        translation 0.0433 -0.025 0
+        rotation 0 0 1 -0.524
         children [
           DEF COXA_SHAPE Shape {
             appearance PBRAppearance {
@@ -209,12 +210,12 @@ DEF HEXAPOD Robot {
       }
     }
     
-    # Front-Left leg (leg 1)
+    # Front-Left leg (leg 1) - angle: +30°
     HingeJoint {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor 0.06 0.04 0
+        anchor 0.0433 0.025 0
       }
       device [
         RotationalMotor {
@@ -227,8 +228,8 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_FL Solid {
-        translation 0.06 0.04 0
-        rotation 0 0 1 0.785
+        translation 0.0433 0.025 0
+        rotation 0 0 1 0.524
         children [
           USE COXA_SHAPE
           Transform {
@@ -318,12 +319,12 @@ DEF HEXAPOD Robot {
       }
     }
     
-    # Mid-Right leg (leg 2)
+    # Mid-Right leg (leg 2) - angle: -90°
     HingeJoint {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor 0 -0.04 0
+        anchor 0 -0.05 0
       }
       device [
         RotationalMotor {
@@ -336,7 +337,7 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_MR Solid {
-        translation 0 -0.04 0
+        translation 0 -0.05 0
         rotation 0 0 1 -1.571
         children [
           USE COXA_SHAPE
@@ -427,12 +428,12 @@ DEF HEXAPOD Robot {
       }
     }
     
-    # Mid-Left leg (leg 3)
+    # Mid-Left leg (leg 3) - angle: +90°
     HingeJoint {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor 0 0.04 0
+        anchor 0 0.05 0
       }
       device [
         RotationalMotor {
@@ -445,7 +446,7 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_ML Solid {
-        translation 0 0.04 0
+        translation 0 0.05 0
         rotation 0 0 1 1.571
         children [
           USE COXA_SHAPE
@@ -536,12 +537,12 @@ DEF HEXAPOD Robot {
       }
     }
     
-    # Rear-Right leg (leg 4)
+    # Rear-Right leg (leg 4) - angle: -150°
     HingeJoint {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor -0.06 -0.04 0
+        anchor -0.0433 -0.025 0
       }
       device [
         RotationalMotor {
@@ -554,8 +555,8 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_RR Solid {
-        translation -0.06 -0.04 0
-        rotation 0 0 1 -2.356
+        translation -0.0433 -0.025 0
+        rotation 0 0 1 -2.618
         children [
           USE COXA_SHAPE
           Transform {
@@ -645,12 +646,12 @@ DEF HEXAPOD Robot {
       }
     }
     
-    # Rear-Left leg (leg 5)
+    # Rear-Left leg (leg 5) - angle: +150°
     HingeJoint {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor -0.06 0.04 0
+        anchor -0.0433 0.025 0
       }
       device [
         RotationalMotor {
@@ -663,8 +664,8 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_RL Solid {
-        translation -0.06 0.04 0
-        rotation 0 0 1 2.356
+        translation -0.0433 0.025 0
+        rotation 0 0 1 2.618
         children [
           USE COXA_SHAPE
           Transform {

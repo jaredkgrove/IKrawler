@@ -1,4 +1,6 @@
 #include "Hexapod.h"
+#include "GaitMath.h"
+#include "Utils.h"
 #include <cmath>
 
 // Define static constexpr arrays
@@ -96,23 +98,25 @@ bool Hexapod::setFootPositionBody(int leg, float x, float y, float z) {
 }
 
 void Hexapod::initHipMounts() {
-  // Hip positions and angles from hexapod.wbt
+  // Hip positions and angles for symmetric radial design (60° spacing)
   // Body coordinate system: X = forward, Y = left, Z = up
   // Angles: 0 = pointing forward, positive = counterclockwise
+  // All hips at radius 0.05m from body center
 
-  // Front legs: x = 0.06, y = ±0.04, angle = ±45°
-  hipMounts_[FRONT_RIGHT] = HipMount(0.06f, -0.04f, -LegIK::PI / 4.0f); // -45°
-  hipMounts_[FRONT_LEFT] = HipMount(0.06f, 0.04f, LegIK::PI / 4.0f);    // +45°
+  // Front legs: angle = ±30°
+  hipMounts_[FRONT_RIGHT] =
+      HipMount(0.0433f, -0.025f, -LegIK::PI / 6.0f);                    // -30°
+  hipMounts_[FRONT_LEFT] = HipMount(0.0433f, 0.025f, LegIK::PI / 6.0f); // +30°
 
-  // Middle legs: x = 0, y = ±0.04, angle = ±90°
-  hipMounts_[MIDDLE_RIGHT] = HipMount(0.0f, -0.04f, -LegIK::PI / 2.0f); // -90°
-  hipMounts_[MIDDLE_LEFT] = HipMount(0.0f, 0.04f, LegIK::PI / 2.0f);    // +90°
+  // Middle legs: angle = ±90°
+  hipMounts_[MIDDLE_RIGHT] = HipMount(0.0f, -0.05f, -LegIK::PI / 2.0f); // -90°
+  hipMounts_[MIDDLE_LEFT] = HipMount(0.0f, 0.05f, LegIK::PI / 2.0f);    // +90°
 
-  // Rear legs: x = -0.06, y = ±0.04, angle = ±135°
+  // Rear legs: angle = ±150°
   hipMounts_[REAR_RIGHT] =
-      HipMount(-0.06f, -0.04f, -3.0f * LegIK::PI / 4.0f); // -135°
+      HipMount(-0.0433f, -0.025f, -5.0f * LegIK::PI / 6.0f); // -150°
   hipMounts_[REAR_LEFT] =
-      HipMount(-0.06f, 0.04f, 3.0f * LegIK::PI / 4.0f); // +135°
+      HipMount(-0.0433f, 0.025f, 5.0f * LegIK::PI / 6.0f); // +150°
 
   // Compute default foot positions in body frame
   // Each foot extends STAND_REACH from hip at the hip's angle
@@ -186,12 +190,8 @@ void Hexapod::stand() {
   gaitState_ = IDLE;
   // Standing position
   // Foot position: x = outward reach, y = 0 (centered), z = height below hip
-  const float standX = 0.12f;  // Outward from hip
-  const float standY = 0.0f;   // Centered (no forward/back offset)
-  const float standZ = -0.06f; // Below hip level
-
   for (int leg = 0; leg < NUM_LEGS; leg++) {
-    setFootPosition(leg, standX, standY, standZ);
+    setFootPosition(leg, STAND_REACH, 0.0f, STAND_HEIGHT);
   }
 }
 
@@ -203,11 +203,30 @@ void Hexapod::rest() {
   }
 }
 
-void Hexapod::tripod_walk() {
+void Hexapod::walk() {
+  // Start walking if not already
   if (gaitState_ != TRIPOD_WALK) {
     gaitState_ = TRIPOD_WALK;
     gaitPhase_ = 0.0f;
   }
+}
+
+void Hexapod::setHeading(float headingDeg) {
+  heading_ = headingDeg * LegIK::PI / 180.0f;
+}
+
+void Hexapod::setTurnRate(float turnRate) {
+  turnRate_ = Utils::clamp(turnRate, -1.0f, 1.0f);
+}
+
+void Hexapod::setStrideLength(float length) {
+  // Clamp to valid range
+  strideLength_ = Utils::clamp(length, MIN_STRIDE_LENGTH, MAX_STRIDE_LENGTH);
+}
+
+void Hexapod::setGaitSpeed(float speed) {
+  // Clamp to valid range
+  gaitSpeed_ = Utils::clamp(speed, MIN_GAIT_SPEED, MAX_GAIT_SPEED);
 }
 
 void Hexapod::stop() {
@@ -217,44 +236,19 @@ void Hexapod::stop() {
 }
 
 void Hexapod::applyGaitToLeg(int leg, float phase) {
-  // Phase 0.0-0.5: Leg is in swing (lifted, moving forward)
-  // Phase 0.5-1.0: Leg is in stance (on ground, pushing back)
+  // Calculate phase progress and lift height
+  GaitMath::PhaseResult phaseResult =
+      GaitMath::calculatePhaseProgress(phase, LIFT_HEIGHT, 0.5f);
 
-  // Deltas relative to neutral position in Body Frame
-  float deltaX = 0.0f; // Forward/Backward
-  float deltaY = 0.0f; // Left/Right (not used for straight walking)
-  float deltaZ = 0.0f; // Up/Down (Lift)
+  // Calculate XY movement based on heading and turn rate
+  GaitMath::FootDelta delta = GaitMath::calculateFootDelta(
+      phaseResult.strideProgress, turnRate_, heading_, strideLength_,
+      defaultFootPos_[leg].x, defaultFootPos_[leg].y);
 
-  if (phase < 0.5f) {
-    // Swing phase: leg lifted and moving forward
-    float swingProgress = phase / 0.5f; // 0 to 1 during swing
-
-    // Lift the leg (sine wave)
-    deltaZ = std::sin(swingProgress * LegIK::PI) * LIFT_HEIGHT;
-
-    // Move foot forward relative to body (X-axis)
-    // Start at -STRIDE/2, End at +STRIDE/2
-    deltaX = -STRIDE_LENGTH / 2.0f + swingProgress * STRIDE_LENGTH;
-  } else {
-    // Stance phase: leg on ground, pushing back
-    float stanceProgress = (phase - 0.5f) / 0.5f; // 0 to 1 during stance
-
-    // Keep leg on ground
-    deltaZ = 0.0f;
-
-    // Move foot backward relative to body (X-axis) to propel body forward
-    // Start at +STRIDE/2, End at -STRIDE/2
-    deltaX = STRIDE_LENGTH / 2.0f - stanceProgress * STRIDE_LENGTH;
-  }
-
-  // Calculate target position in Body Frame
-  // Start from the default neutral position for this leg
-  float targetX = defaultFootPos_[leg].x + deltaX;
-  float targetY = defaultFootPos_[leg].y + deltaY;
-  float targetZ = defaultFootPos_[leg].z + deltaZ;
-
-  // Utilize Body coordinates to ensure straight-line motion parallel to body
-  setFootPositionBody(leg, targetX, targetY, targetZ);
+  // Apply foot position in body frame
+  setFootPositionBody(leg, defaultFootPos_[leg].x + delta.x,
+                      defaultFootPos_[leg].y + delta.y,
+                      defaultFootPos_[leg].z + phaseResult.liftHeight);
 }
 
 void Hexapod::update(float deltaTime) {
@@ -268,7 +262,7 @@ void Hexapod::update(float deltaTime) {
   // Check if we completed a cycle
   bool cycleCompleted = false;
   if (gaitPhase_ >= 1.0f) {
-    gaitPhase_ -= 1.0f;
+    gaitPhase_ = Utils::wrapPhase(gaitPhase_);
     cycleCompleted = true;
   }
 
@@ -279,17 +273,14 @@ void Hexapod::update(float deltaTime) {
   }
 
   if (gaitState_ == TRIPOD_WALK) {
-    updateTripodGait();
+    updateWalkGait();
   }
 }
 
-void Hexapod::updateTripodGait() {
+void Hexapod::updateWalkGait() {
   // Tripod gait: Group A and Group B are 180 degrees out of phase
   float phaseA = gaitPhase_;
-  float phaseB = gaitPhase_ + 0.5f;
-  if (phaseB >= 1.0f) {
-    phaseB -= 1.0f;
-  }
+  float phaseB = Utils::wrapPhase(gaitPhase_ + 0.5f);
 
   // Apply gait to Group A legs
   for (int i = 0; i < 3; i++) {
