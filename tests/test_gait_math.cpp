@@ -1,34 +1,9 @@
 #include "../lib/HexapodCore/include/GaitMath.h"
-#include <cmath>
-#include <iostream>
+#include "TestFramework.h"
 
-// Simple minimal test framework
+// Define globals required by TestFramework
 int tests_run = 0;
 int tests_failed = 0;
-
-#define EXPECT_NEAR(val1, val2, abs_error)                                     \
-  do {                                                                         \
-    float diff = std::abs((val1) - (val2));                                    \
-    if (diff > (abs_error)) {                                                  \
-      std::cout << "[FAILED] " << #val1 << " (" << (val1) << ") != " << #val2  \
-                << " (" << (val2) << ") within " << abs_error << "\n";         \
-      std::cout << "         at " << __FILE__ << ":" << __LINE__ << "\n";      \
-      tests_failed++;                                                          \
-    }                                                                          \
-  } while (0)
-
-#define EXPECT_TRUE(condition)                                                 \
-  do {                                                                         \
-    if (!(condition)) {                                                        \
-      std::cout << "[FAILED] " << #condition << " is false\n";                 \
-      std::cout << "         at " << __FILE__ << ":" << __LINE__ << "\n";      \
-      tests_failed++;                                                          \
-    }                                                                          \
-  } while (0)
-
-#define EXPECT_FALSE(condition) EXPECT_TRUE(!(condition))
-
-#define TEST(name) void name()
 
 // ==========================================
 // TESTS
@@ -121,12 +96,10 @@ int main() {
   TestStraightWalk();
   TestSideWalk();
 
-  std::cout << "--------------------------------\n";
+  PRINT_RESULT("GAIT MATH");
   if (tests_failed == 0) {
-    std::cout << "ALL TESTS PASSED\n";
     return 0;
   } else {
-    std::cout << tests_failed << " TESTS FAILED\n";
     return 1;
   }
 }

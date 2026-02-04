@@ -68,4 +68,15 @@ private:
 
   // Convert degrees to radians
   static float degToRad(float deg);
+
+  /**
+   * @brief Solve 2-link planar IK for femur and tibia
+   * @param targetDist Horizontal distance from femur joint to foot
+   * @param targetHeight Vertical distance from femur joint to foot (z)
+   * @param femurAngle Output femur angle in degrees
+   * @param tibiaAngle Output tibia angle in degrees
+   * @return true if reachable
+   */
+  bool solve2LinkIK(float targetDist, float targetHeight, float &femurAngle,
+                    float &tibiaAngle) const;
 };

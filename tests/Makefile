@@ -9,7 +9,8 @@ ifeq ($(OS),Windows_NT)
     EXT = .exe
     
     # Run recipe for Windows (chains commands with &&)
-    RUN_CMD = set PATH=C:\msys64\ucrt64\bin;%PATH% && run_tests.exe
+    # Note: We run all tests sequentially
+    RUN_CMD = set PATH=C:\msys64\ucrt64\bin;%PATH% && test_gait.exe && test_ik.exe && test_integration.exe
 else
     # Mac / Linux
     CXX = clang++
@@ -17,21 +18,33 @@ else
     EXT = 
     
     # Run recipe for Unix
-    RUN_CMD = ./run_tests
+    RUN_CMD = ./test_gait && ./test_ik && ./test_integration
 endif
 
 CXXFLAGS = -std=c++17 -Wall -Wextra -I../lib/HexapodCore/include
 
-TARGET = run_tests$(EXT)
-SOURCES = test_gait_math.cpp ../lib/HexapodCore/src/GaitMath.cpp
+# Targets
+TARGET_GAIT = test_gait$(EXT)
+TARGET_IK = test_ik$(EXT)
+TARGET_INT = test_integration$(EXT)
 
-all: $(TARGET) run
+SOURCES_GAIT = test_gait_math.cpp ../lib/HexapodCore/src/GaitMath.cpp
+SOURCES_IK = test_leg_ik.cpp ../lib/HexapodCore/src/LegIK.cpp
+SOURCES_INT = test_hexapod_integration.cpp ../lib/HexapodCore/src/Hexapod.cpp ../lib/HexapodCore/src/LegIK.cpp ../lib/HexapodCore/src/GaitMath.cpp
 
-$(TARGET): $(SOURCES)
-	$(CXX) $(CXXFLAGS) $(SOURCES) -o $(TARGET)
+all: $(TARGET_GAIT) $(TARGET_IK) $(TARGET_INT) run
 
-run: $(TARGET)
+$(TARGET_GAIT): $(SOURCES_GAIT)
+	$(CXX) $(CXXFLAGS) $(SOURCES_GAIT) -o $(TARGET_GAIT)
+
+$(TARGET_IK): $(SOURCES_IK)
+	$(CXX) $(CXXFLAGS) $(SOURCES_IK) -o $(TARGET_IK)
+
+$(TARGET_INT): $(SOURCES_INT)
+	$(CXX) $(CXXFLAGS) $(SOURCES_INT) -o $(TARGET_INT)
+
+run: $(TARGET_GAIT) $(TARGET_IK) $(TARGET_INT)
 	$(RUN_CMD)
 
 clean:
-	$(RM) $(TARGET)
+	$(RM) $(TARGET_GAIT) $(TARGET_IK) $(TARGET_INT) run_tests.exe
