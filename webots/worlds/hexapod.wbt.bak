@@ -121,7 +121,7 @@ DEF HEXAPOD Robot {
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.03 0 0
                   children [
                     DEF FEMUR_SHAPE Shape {
                       appearance PBRAppearance {
@@ -129,7 +129,7 @@ DEF HEXAPOD Robot {
                         roughness 0.5
                       }
                       geometry Box {
-                        size 0.05 0.015 0.015
+                        size 0.06 0.015 0.015
                       }
                     }
                   ]
@@ -138,7 +138,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.06 0 0
                   }
                   device [
                     RotationalMotor {
@@ -151,25 +151,20 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_FR Solid {
-                    translation 0.05 0 0
+                    translation 0.06 0 0
                     rotation 0 1 0 0
                     children [
-                      DEF TIBIA_VISUAL Transform {
-                        translation 0.04 0 0
-                        children [
-                          DEF TIBIA_SHAPE Shape {
-                            appearance PBRAppearance {
-                              baseColor 0.8 0.8 0.2
-                              roughness 0.5
-                            }
-                            geometry Box {
-                              size 0.08 0.012 0.012
-                            }
-                          }
-                        ]
+                      DEF TIBIA_SHAPE Shape {
+                        appearance PBRAppearance {
+                          baseColor 0.8 0.8 0.2
+                          roughness 0.5
+                        }
+                        geometry Box {
+                          size 0.08 0.012 0.012
+                        }
                       }
                       DEF FOOT Transform {
-                        translation 0.08 0 0
+                        translation 0.04 0 0
                         children [
                           Shape {
                             appearance PBRAppearance {
@@ -184,7 +179,7 @@ DEF HEXAPOD Robot {
                       }
                     ]
                     contactMaterial "body"
-                    boundingObject USE TIBIA_VISUAL
+                    boundingObject USE TIBIA_SHAPE
                     physics Physics {
                       density -1
                       mass 0.01
@@ -194,7 +189,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.03 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]
@@ -264,7 +259,7 @@ DEF HEXAPOD Robot {
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.03 0 0
                   children [
                     USE FEMUR_SHAPE
                   ]
@@ -273,7 +268,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.06 0 0
                   }
                   device [
                     RotationalMotor {
@@ -286,14 +281,14 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_FL Solid {
-                    translation 0.05 0 0
+                    translation 0.06 0 0
                     rotation 0 1 0 0
                     children [
-                      USE TIBIA_VISUAL
+                      USE TIBIA_SHAPE
                       USE FOOT
                     ]
                     contactMaterial "body"
-                    boundingObject USE TIBIA_VISUAL
+                    boundingObject USE TIBIA_SHAPE
                     physics Physics {
                       density -1
                       mass 0.01
@@ -303,7 +298,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.03 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]
@@ -373,7 +368,7 @@ DEF HEXAPOD Robot {
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.03 0 0
                   children [
                     USE FEMUR_SHAPE
                   ]
@@ -382,7 +377,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.06 0 0
                   }
                   device [
                     RotationalMotor {
@@ -395,14 +390,14 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_MR Solid {
-                    translation 0.05 0 0
+                    translation 0.06 0 0
                     rotation 0 1 0 0
                     children [
-                      USE TIBIA_VISUAL
+                      USE TIBIA_SHAPE
                       USE FOOT
                     ]
                     contactMaterial "body"
-                    boundingObject USE TIBIA_VISUAL
+                    boundingObject USE TIBIA_SHAPE
                     physics Physics {
                       density -1
                       mass 0.01
@@ -412,7 +407,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.03 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]
@@ -482,7 +477,7 @@ DEF HEXAPOD Robot {
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.03 0 0
                   children [
                     USE FEMUR_SHAPE
                   ]
@@ -491,7 +486,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.06 0 0
                   }
                   device [
                     RotationalMotor {
@@ -504,14 +499,14 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_ML Solid {
-                    translation 0.05 0 0
+                    translation 0.06 0 0
                     rotation 0 1 0 0
                     children [
-                      USE TIBIA_VISUAL
+                      USE TIBIA_SHAPE
                       USE FOOT
                     ]
                     contactMaterial "body"
-                    boundingObject USE TIBIA_VISUAL
+                    boundingObject USE TIBIA_SHAPE
                     physics Physics {
                       density -1
                       mass 0.01
@@ -521,7 +516,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.03 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]
@@ -591,7 +586,7 @@ DEF HEXAPOD Robot {
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.03 0 0
                   children [
                     USE FEMUR_SHAPE
                   ]
@@ -600,7 +595,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.06 0 0
                   }
                   device [
                     RotationalMotor {
@@ -613,14 +608,14 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_RR Solid {
-                    translation 0.05 0 0
+                    translation 0.06 0 0
                     rotation 0 1 0 0
                     children [
-                      USE TIBIA_VISUAL
+                      USE TIBIA_SHAPE
                       USE FOOT
                     ]
                     contactMaterial "body"
-                    boundingObject USE TIBIA_VISUAL
+                    boundingObject USE TIBIA_SHAPE
                     physics Physics {
                       density -1
                       mass 0.01
@@ -630,7 +625,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.03 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]
@@ -700,7 +695,7 @@ DEF HEXAPOD Robot {
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.03 0 0
                   children [
                     USE FEMUR_SHAPE
                   ]
@@ -709,7 +704,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.06 0 0
                   }
                   device [
                     RotationalMotor {
@@ -722,14 +717,14 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_RL Solid {
-                    translation 0.05 0 0
+                    translation 0.06 0 0
                     rotation 0 1 0 0
                     children [
-                      USE TIBIA_VISUAL
+                      USE TIBIA_SHAPE
                       USE FOOT
                     ]
                     contactMaterial "body"
-                    boundingObject USE TIBIA_VISUAL
+                    boundingObject USE TIBIA_SHAPE
                     physics Physics {
                       density -1
                       mass 0.01
@@ -739,7 +734,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.03 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]

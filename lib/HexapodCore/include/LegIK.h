@@ -18,7 +18,7 @@ public:
     float mountAngle;  // Hip mounting angle in radians (relative to body)
 
     LegConfig()
-        : coxaLength(0.03f), femurLength(0.06f), tibiaLength(0.08f),
+        : coxaLength(0.02f), femurLength(0.050f), tibiaLength(0.080f),
           mountAngle(0.0f) {}
   };
 

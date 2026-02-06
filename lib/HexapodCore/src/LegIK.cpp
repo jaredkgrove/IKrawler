@@ -25,6 +25,11 @@ LegIK::JointAngles LegIK::solve(const FootPosition &target) const {
     result.valid = true;
   }
 
+  // Clamp all angles to servo-safe range [0, 180]
+  result.coxa = Utils::clamp(result.coxa, 0.0f, 180.0f);
+  result.femur = Utils::clamp(result.femur, 0.0f, 180.0f);
+  result.tibia = Utils::clamp(result.tibia, 0.0f, 180.0f);
+
   return result;
 }
 
@@ -62,9 +67,13 @@ bool LegIK::solve2LinkIK(float targetDist, float targetHeight,
   float femurRad = angleToFoot + alpha;
   float tibiaRelativeRad = PI - kneeAngleRad;
 
-  // Convert to degrees and apply servo offsets (90 = horizontal/neutral)
+  // Convert to degrees and apply servo offsets
+  // Femur: 90° = horizontal, decreases as leg points down
   femurAngle = 90.0f - radToDeg(femurRad);
-  tibiaAngle = 90.0f + radToDeg(tibiaRelativeRad);
+
+  // Tibia: 90° = standing pose (knee at ~90°), optimized for non-inverted
+  // operation Lower angles = more extended, higher angles = more folded
+  tibiaAngle = 180.0f - radToDeg(tibiaRelativeRad);
 
   return true;
 }

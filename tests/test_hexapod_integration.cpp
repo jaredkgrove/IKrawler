@@ -1,6 +1,5 @@
 #include "../lib/HexapodCore/include/Hexapod.h"
 #include "TestFramework.h"
-#include <cstring>
 
 // Define globals required by TestFramework
 int tests_run = 0;
@@ -130,12 +129,84 @@ TEST(TestStopSequence) {
   EXPECT_NEAR(angleBefore, angleAfter, 0.001f);
 }
 
+TEST(TestStrideClamping) {
+  // Test that setStrideLength clamps to maxStride_
+  MockServo mock;
+  Hexapod hexapod(&mock);
+  int pins[18] = {0};
+  hexapod.begin(pins);
+
+  // Try to set an impossibly large stride
+  hexapod.setStrideLength(1.0f); // 1 meter is way too far
+
+  float actualStride = hexapod.getStrideLength();
+
+  // Should be clamped to maxStride_ (which is geometry-derived)
+  EXPECT_TRUE(actualStride < 0.2f); // Should be << 20cm for our leg dimensions
+  EXPECT_TRUE(actualStride > 0.0f); // Should still be positive
+}
+
+TEST(TestHeightChangeReclampsStride) {
+  // When height is reduced, maxStride_ decreases, and strideLength_ should
+  // re-clamp
+  MockServo mock;
+  Hexapod hexapod(&mock);
+  int pins[18] = {0};
+  hexapod.begin(pins);
+  hexapod.stand();
+
+  // Set stride to current max
+  hexapod.setStrideLength(hexapod.getMaxStride());
+  float strideAtStanding = hexapod.getStrideLength();
+
+  // Now lower the body (rest position has lower maxStride)
+  hexapod.rest();
+  float strideAfterRest = hexapod.getStrideLength();
+
+  // Stride should have been automatically reduced
+  EXPECT_TRUE(strideAfterRest <= hexapod.getMaxStride());
+  EXPECT_TRUE(strideAfterRest < strideAtStanding);
+}
+
+TEST(TestServoAngleBounds) {
+  // Verify that servo angles stay in valid range [0, 180]
+  MockServo mock;
+  Hexapod hexapod(&mock);
+  int pins[18] = {0};
+  hexapod.begin(pins);
+
+  hexapod.stand();
+  hexapod.update(0.0f);
+
+  // Check all 18 servo angles in standing pose
+  for (int i = 0; i < 18; i++) {
+    float angle = mock.read(i);
+    EXPECT_TRUE(angle >= 0.0f);
+    EXPECT_TRUE(angle <= 180.0f);
+  }
+
+  // Also check during walking (this was previously failing before IK fix)
+  hexapod.walk();
+  hexapod.update(0.1f);
+  hexapod.update(0.1f);
+  hexapod.update(0.1f);
+
+  for (int i = 0; i < 18; i++) {
+    float angle = mock.read(i);
+    EXPECT_TRUE(angle >= 0.0f);
+    EXPECT_TRUE(angle <= 180.0f);
+  }
+}
+
 int main() {
   PRINT_RESULT("HEXAPOD INTEGRATION");
 
   TestInitialization();
   TestWalkCycle();
   TestStopSequence();
+  TestStrideClamping();
+  TestHeightChangeReclampsStride();
+  TestServoAngleBounds();
 
   if (tests_failed == 0) {
     return 0;

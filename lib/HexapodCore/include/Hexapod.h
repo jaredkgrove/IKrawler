@@ -55,6 +55,15 @@ public:
   static constexpr int JOINTS_PER_LEG = 3;
   static constexpr int TOTAL_SERVOS = NUM_LEGS * JOINTS_PER_LEG;
 
+  // Pose percentages (fraction of leg length)
+  // These define standing/rest positions relative to geometry
+  static constexpr float STANDING_HEIGHT_RATIO = 0.50f; // 50% of leg length
+  static constexpr float STANDING_REACH_RATIO = 0.70f;  // 70% of leg length
+  static constexpr float REST_HEIGHT_RATIO = 0.25f;     // 25% of leg length
+  static constexpr float REST_REACH_RATIO = 0.50f;      // 50% of leg length
+  static constexpr float MIN_HEIGHT_RATIO = 0.85f;      // Body lowest
+  static constexpr float MAX_HEIGHT_RATIO = 0.25f; // Body highest (crouched)
+
   /**
    * @brief Constructor
    * @param servoInterface Platform-specific servo implementation
@@ -154,10 +163,40 @@ public:
   void setStrideLength(float length);
 
   /**
+   * @brief Get current stride length
+   * @return Current stride length in meters
+   */
+  float getStrideLength() const { return strideLength_; }
+
+  /**
+   * @brief Get current maximum stride for current height
+   * @return Maximum stride length in meters
+   */
+  float getMaxStride() const { return maxStride_; }
+
+  /**
    * @brief Set gait speed (cycle frequency)
    * @param speed Gait cycles per second
    */
   void setGaitSpeed(float speed);
+
+  /**
+   * @brief Get the maximum stride length for a given body height
+   * @param height Current body height (negative, below hip)
+   * @return Maximum safe stride length in meters
+   *
+   * Lower heights (crouched) have shorter max stride to prevent overextension.
+   * Higher heights (standing) allow longer strides.
+   */
+  float getMaxStrideForHeight(float height) const;
+
+  /**
+   * @brief Update current body height and recalculate stride limits
+   * @param height Body height in meters (negative, below hip)
+   *
+   * This recalculates the maximum allowed stride based on the new height.
+   */
+  void updateBodyHeight(float height);
 
   /**
    * @brief Stop walking (return to standing)
@@ -193,11 +232,6 @@ private:
   };
   FootPos defaultFootPos_[NUM_LEGS];
 
-  // Standing foot position (hip-local)
-  static constexpr float STAND_REACH = 0.12f;   // Outward from hip
-  static constexpr float STAND_HEIGHT = -0.06f; // Below hip
-  static constexpr float REST_HEIGHT = -0.03f;  // Lowered body position
-
   // Gait control
   GaitState gaitState_ = IDLE;
   float gaitPhase_ = 0.0f; // 0.0 to 1.0, cycles through gait
@@ -207,6 +241,17 @@ private:
   float heading_ = 0.0f;  // Direction of travel in radians (0=forward)
   float turnRate_ = 0.0f; // Rotation rate (-1.0 to 1.0, differential steering)
   float strideLength_ = 0.04f; // Stride length in meters
+  float currentHeight_ =
+      -0.06f;               // Current body height (will be set from geometry)
+  float maxStride_ = 0.10f; // Cached max stride (calculated from geometry)
+
+  // Geometry-derived pose values (computed at init from leg dimensions)
+  float standingHeight_ = -0.065f; // Computed: -legLength * 0.50
+  float standingReach_ = 0.091f;   // Computed: legLength * 0.70
+  float restHeight_ = -0.0325f;    // Computed: -legLength * 0.25
+  float restReach_ = 0.065f;       // Computed: legLength * 0.50
+  float minHeight_ = -0.1105f;     // Computed: -legLength * 0.85
+  float maxHeight_ = -0.0325f;     // Computed: -legLength * 0.25
 
   // Standing pose (used as reference for gait)
   static constexpr float STAND_COXA = 90.0f;
@@ -215,9 +260,7 @@ private:
 
   // Gait parameters
   static constexpr float MIN_STRIDE_LENGTH =
-      0.04f; // Minimum stride (low speed)
-  static constexpr float MAX_STRIDE_LENGTH =
-      0.08f;                                    // Maximum stride (high speed)
+      0.02f;                                    // Minimum stride (safety floor)
   static constexpr float MIN_GAIT_SPEED = 0.5f; // Minimum gait cycles/sec
   static constexpr float MAX_GAIT_SPEED = 2.0f; // Maximum gait cycles/sec
   static constexpr float LIFT_HEIGHT = 0.03f;   // Foot lift height in meters
@@ -233,6 +276,9 @@ private:
 
   // Apply gait to a single leg
   void applyGaitToLeg(int leg, float phase);
+
+  // Update max stride and re-clamp current stride
+  void updateMaxStride_();
 
   // Update tripod gait
   void updateWalkGait();

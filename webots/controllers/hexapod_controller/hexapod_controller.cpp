@@ -50,13 +50,13 @@ int main(int argc, char **argv) {
 
   // Set up for differential steering demo
   hexapod.setStrideLength(0.06f); // Stride length
-  hexapod.setGaitSpeed(1.5f);     // Gait speed
+  hexapod.setGaitSpeed(0.5f);     // Gait speed
   hexapod.setTurnRate(0.0f);      // Start going straight
   hexapod.walk();                 // Start walking (heading/turnRate set above)
 
   double lastTime = robot->getTime();
   // double loopStartTime = lastTime;
-  float turnRate = 1.0f;
+  float turnRate = 0.0f;
   hexapod.setTurnRate(turnRate);
   while (robot->step(timeStep) != -1) {
     double currentTime = robot->getTime();

@@ -118,8 +118,22 @@ void Hexapod::initHipMounts() {
   hipMounts_[REAR_LEFT] =
       HipMount(-0.0433f, 0.025f, 5.0f * LegIK::PI / 6.0f); // +150°
 
+  // Compute geometry-derived pose values from leg dimensions
+  const LegIK::LegConfig &config = legIK_[0].getConfig();
+  float legLength = config.femurLength + config.tibiaLength;
+
+  standingHeight_ = -legLength * STANDING_HEIGHT_RATIO;
+  standingReach_ = legLength * STANDING_REACH_RATIO;
+  restHeight_ = -legLength * REST_HEIGHT_RATIO;
+  restReach_ = legLength * REST_REACH_RATIO;
+  minHeight_ = -legLength * MIN_HEIGHT_RATIO;
+  maxHeight_ = -legLength * MAX_HEIGHT_RATIO;
+
+  // Initialize current height to standing
+  currentHeight_ = standingHeight_;
+  updateMaxStride_();
+
   // Compute default foot positions in body frame
-  // Each foot extends STAND_REACH from hip at the hip's angle
   for (int leg = 0; leg < NUM_LEGS; leg++) {
     const HipMount &hip = hipMounts_[leg];
     float cosA = std::cos(hip.angle);
@@ -127,9 +141,9 @@ void Hexapod::initHipMounts() {
 
     // Foot position = hip position + (reach * direction)
     defaultFootPos_[leg] =
-        FootPos(hip.x + STAND_REACH * cosA, // X in body frame
-                hip.y + STAND_REACH * sinA, // Y in body frame
-                STAND_HEIGHT                // Z (below body)
+        FootPos(hip.x + standingReach_ * cosA, // X in body frame
+                hip.y + standingReach_ * sinA, // Y in body frame
+                standingHeight_                // Z (below body)
         );
   }
 }
@@ -188,18 +202,25 @@ bool Hexapod::setBodyPose(float x, float y, float z, float roll, float pitch,
 
 void Hexapod::stand() {
   gaitState_ = IDLE;
-  // Standing position
-  // Foot position: x = outward reach, y = 0 (centered), z = height below hip
+
+  // Use cached geometry values (computed at init)
+  currentHeight_ = standingHeight_;
+  updateMaxStride_();
+
   for (int leg = 0; leg < NUM_LEGS; leg++) {
-    setFootPosition(leg, STAND_REACH, 0.0f, STAND_HEIGHT);
+    setFootPosition(leg, standingReach_, 0.0f, standingHeight_);
   }
 }
 
 void Hexapod::rest() {
   gaitState_ = IDLE;
-  // Resting position - body lowered
+
+  // Use cached geometry values (computed at init)
+  currentHeight_ = restHeight_;
+  updateMaxStride_();
+
   for (int leg = 0; leg < NUM_LEGS; leg++) {
-    setFootPosition(leg, STAND_REACH, 0.0f, REST_HEIGHT);
+    setFootPosition(leg, restReach_, 0.0f, restHeight_);
   }
 }
 
@@ -220,13 +241,70 @@ void Hexapod::setTurnRate(float turnRate) {
 }
 
 void Hexapod::setStrideLength(float length) {
-  // Clamp to valid range
-  strideLength_ = Utils::clamp(length, MIN_STRIDE_LENGTH, MAX_STRIDE_LENGTH);
+  // Clamp to valid range using cached max stride (set by updateBodyHeight)
+  strideLength_ = Utils::clamp(length, MIN_STRIDE_LENGTH, maxStride_);
 }
 
 void Hexapod::setGaitSpeed(float speed) {
-  // Clamp to valid range
   gaitSpeed_ = Utils::clamp(speed, MIN_GAIT_SPEED, MAX_GAIT_SPEED);
+}
+
+float Hexapod::getMaxStrideForHeight(float height) const {
+  // Geometry-based stride calculation.
+  // During a stride, the foot moves forward/back by stride/2.
+  // Peak reach = sqrt(stand_reach² + (stride/2)²)
+  // This must be <= leg length (femur + tibia).
+  //
+  // Solving for max stride:
+  // max_stride = 2 * sqrt(leg_length² - reach²)
+
+  // Get leg dimensions from the IK config (use leg 0 as reference)
+  const LegIK::LegConfig &config = legIK_[0].getConfig();
+  float legLength = config.femurLength + config.tibiaLength;
+
+  // Estimate horizontal reach from height using Pythagorean theorem
+  // If leg is at angle, reach² + height² ≈ (some extension factor)²
+  // Approximate: reach ≈ sqrt(legLength² * extensionFactor² - height²)
+  float heightAbs = std::abs(height);
+  float reachSquaredEst =
+      (legLength * MIN_HEIGHT_RATIO) * (legLength * MIN_HEIGHT_RATIO) -
+      heightAbs * heightAbs;
+
+  float currentReach = (reachSquaredEst > 0) ? std::sqrt(reachSquaredEst)
+                                             : legLength * REST_REACH_RATIO;
+  currentReach = Utils::clamp(currentReach, 0.03f, legLength * 0.9f);
+
+  // Calculate max stride from geometry
+  float reachSquared = currentReach * currentReach;
+  float legSquared = legLength * legLength;
+
+  if (reachSquared >= legSquared) {
+    // Already at or beyond leg limit - return minimum
+    return MIN_STRIDE_LENGTH;
+  }
+
+  float maxStrideRaw = 2.0f * std::sqrt(legSquared - reachSquared);
+
+  // Apply safety margin (80% of kinematic limit)
+  constexpr float SAFETY_MARGIN = 0.8f;
+  float maxStride = maxStrideRaw * SAFETY_MARGIN;
+
+  // Clamp to sensible bounds
+  return Utils::clamp(maxStride, MIN_STRIDE_LENGTH, 0.15f);
+}
+
+void Hexapod::updateBodyHeight(float height) {
+  // Use cached height limits (computed at init from geometry)
+  currentHeight_ = Utils::clamp(height, minHeight_, maxHeight_);
+
+  // Recalculate max stride and ensure current stride respects it
+  updateMaxStride_();
+}
+
+void Hexapod::updateMaxStride_() {
+  maxStride_ = getMaxStrideForHeight(currentHeight_);
+  // Re-clamp current stride to maintain invariant: strideLength_ <= maxStride_
+  setStrideLength(strideLength_);
 }
 
 void Hexapod::stop() {
