@@ -12,7 +12,7 @@ class LegIK {
 public:
   // Leg segment lengths in meters
   struct LegConfig {
-    float coxaLength;  // Hip segment
+    float coxaLength;  // Hip segment (coxa pivot to femur pivot, horizontal)
     float femurLength; // Thigh segment
     float tibiaLength; // Shin segment (to foot)
     float mountAngle;  // Hip mounting angle in radians (relative to body)

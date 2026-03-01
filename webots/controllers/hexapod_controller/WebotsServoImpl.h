@@ -7,7 +7,6 @@
 #include <webots/PositionSensor.hpp>
 #include <webots/Robot.hpp>
 
-
 using namespace webots;
 
 /**

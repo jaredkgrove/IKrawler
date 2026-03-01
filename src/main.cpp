@@ -1,67 +1,106 @@
-#include "ESP32ServoImpl.h"
-#include "Hexapod.h"
+/**
+ * Single Servo Test - PCA9685 Channel 0
+ *
+ * Sweeps a single servo back and forth on the first PCA9685 board
+ * (default I2C address 0x40) to verify wiring before connecting more servos.
+ *
+ * Wiring:
+ *   ESP32 SDA (GPIO 21) -> PCA9685 SDA
+ *   ESP32 SCL (GPIO 22) -> PCA9685 SCL
+ *   PCA9685 V+ -> Servo power supply (e.g. UBEC 5-6V)
+ *   PCA9685 VCC -> 3.3V (logic power)
+ *   PCA9685 GND -> Common ground
+ */
+
+#include <Adafruit_PWMServoDriver.h>
 #include <Arduino.h>
+#include <Wire.h>
 
+// PCA9685 at default I2C address 0x40
+Adafruit_PWMServoDriver pca = Adafruit_PWMServoDriver(0x40);
 
-// Servo pin assignments (18 servos total)
-// Front-Right leg (0): pins 13, 12, 14
-// Middle-Right leg (1): pins 27, 26, 25
-// Rear-Right leg (2): pins 33, 32, 35
-// Rear-Left leg (3): pins 34, 39, 36
-// Middle-Left leg (4): pins 4, 16, 17
-// Front-Left leg (5): pins 5, 18, 19
-const int SERVO_PINS[18] = {
-    // Leg 0: Front-Right
-    13, 12, 14,
-    // Leg 1: Middle-Right
-    27, 26, 25,
-    // Leg 2: Rear-Right
-    33, 32, 35,
-    // Leg 3: Rear-Left
-    34, 39, 36,
-    // Leg 4: Middle-Left
-    4, 16, 17,
-    // Leg 5: Front-Left
-    5, 18, 19};
+// Servo pulse length limits (in microseconds)
+// Typical MG996R range: ~500us to ~2500us
+static constexpr uint16_t SERVO_MIN_US = 500;
+static constexpr uint16_t SERVO_MAX_US = 2500;
 
-// Create servo implementation
-ESP32ServoImpl servoImpl;
+// PCA9685 settings
+static constexpr uint8_t SERVO_CHANNEL = 0;
+static constexpr uint16_t PWM_FREQ = 50; // 50 Hz for standard servos
 
-// Create hexapod instance
-Hexapod hexapod(&servoImpl);
+// Sweep parameters
+static constexpr float SWEEP_MIN_ANGLE = 0.0f;
+static constexpr float SWEEP_MAX_ANGLE = 180.0f;
+static constexpr float SWEEP_STEP = 1.0f;
+static constexpr int SWEEP_DELAY_MS = 15;
 
-unsigned long lastUpdateTime = 0;
+// Current sweep state
+float currentAngle = SWEEP_MIN_ANGLE;
+float sweepDirection = SWEEP_STEP;
+
+/**
+ * Convert an angle (0-180) to a PCA9685 pulse tick value.
+ */
+uint16_t angleToPulseTicks(float angle) {
+  // Map angle to pulse width in microseconds
+  float pulseUs =
+      SERVO_MIN_US + (angle / 180.0f) * (SERVO_MAX_US - SERVO_MIN_US);
+
+  // Convert microseconds to PCA9685 ticks (4096 ticks per period at 50Hz =
+  // 20ms) tick = pulseUs / 20000 * 4096
+  return static_cast<uint16_t>(pulseUs / 20000.0f * 4096.0f);
+}
 
 void setup() {
   Serial.begin(115200);
-  Serial.println("Hexapod Starting...");
-
-  // Initialize hexapod with servo pins
-  if (!hexapod.begin(SERVO_PINS)) {
-    Serial.println("ERROR: Failed to initialize servos!");
-    while (true) {
-      delay(1000);
-    }
-  }
-
-  Serial.println("Hexapod initialized successfully!");
-
-  // Move to standing position
   delay(1000);
-  Serial.println("Moving to standing position...");
-  hexapod.stand();
+  Serial.println("==========================================");
+  Serial.println("  Single Servo Test - PCA9685 Channel 0");
+  Serial.println("==========================================");
 
-  lastUpdateTime = millis();
+  Wire.begin(); // SDA=21, SCL=22 (ESP32 defaults)
+
+  pca.begin();
+  pca.setPWMFreq(PWM_FREQ);
+  delay(10);
+
+  Serial.println("PCA9685 initialized at 0x40");
+  Serial.println("Starting sweep on channel 0...");
+  Serial.println();
+
+  // Start at center position
+  currentAngle = 90.0f;
+  pca.setPWM(SERVO_CHANNEL, 0, angleToPulseTicks(currentAngle));
+  Serial.println("Moved to center (90 deg). Starting sweep in 2 seconds...");
+  delay(2000);
+
+  currentAngle = SWEEP_MIN_ANGLE;
+  sweepDirection = SWEEP_STEP;
 }
 
 void loop() {
-  unsigned long currentTime = millis();
-  float deltaTime = (currentTime - lastUpdateTime) / 1000.0f;
-  lastUpdateTime = currentTime;
+  // Set the servo position
+  uint16_t ticks = angleToPulseTicks(currentAngle);
+  pca.setPWM(SERVO_CHANNEL, 0, ticks);
 
-  // Update hexapod logic
-  hexapod.update(deltaTime);
+  // Print position every 10 degrees
+  if (static_cast<int>(currentAngle) % 10 == 0) {
+    Serial.printf("Angle: %6.1f°  |  Ticks: %4u\n", currentAngle, ticks);
+  }
 
-  // Small delay to prevent overwhelming the servos
-  delay(20);
+  // Update angle for next iteration
+  currentAngle += sweepDirection;
+
+  // Reverse direction at limits
+  if (currentAngle >= SWEEP_MAX_ANGLE) {
+    currentAngle = SWEEP_MAX_ANGLE;
+    sweepDirection = -SWEEP_STEP;
+    Serial.println("--- Reversing (max reached) ---");
+  } else if (currentAngle <= SWEEP_MIN_ANGLE) {
+    currentAngle = SWEEP_MIN_ANGLE;
+    sweepDirection = SWEEP_STEP;
+    Serial.println("--- Reversing (min reached) ---");
+  }
+
+  delay(SWEEP_DELAY_MS);
 }
