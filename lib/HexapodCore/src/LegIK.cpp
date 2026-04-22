@@ -68,12 +68,11 @@ bool LegIK::solve2LinkIK(float targetDist, float targetHeight,
   float tibiaRelativeRad = PI - kneeAngleRad;
 
   // Convert to degrees and apply servo offsets
-  // Femur: 90° = horizontal, decreases as leg points down
-  femurAngle = 90.0f - radToDeg(femurRad);
+  // Femur: 90° = horizontal, increases as leg points down
+  femurAngle = 90.0f + radToDeg(femurRad);
 
-  // Tibia: 90° = standing pose (knee at ~90°), optimized for non-inverted
-  // operation Lower angles = more extended, higher angles = more folded
-  tibiaAngle = 180.0f - radToDeg(tibiaRelativeRad);
+  // Tibia: 0° = fully extended, increases as knee bends more
+  tibiaAngle = radToDeg(tibiaRelativeRad);
 
   return true;
 }

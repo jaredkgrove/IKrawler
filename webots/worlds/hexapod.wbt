@@ -51,7 +51,7 @@ DEF HEXAPOD Robot {
         roughness 0.7
       }
       geometry Cylinder {
-        radius 0.045
+        radius 0.075
         height 0.03
       }
     }
@@ -61,7 +61,7 @@ DEF HEXAPOD Robot {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor 0.0433 -0.025 0
+        anchor 0.0732 -0.0423 0
       }
       device [
         RotationalMotor {
@@ -74,7 +74,7 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_FR Solid {
-        translation 0.0433 -0.025 0
+        translation 0.0732 -0.0423 0
         rotation 0 0 1 -0.524
         children [
           DEF COXA_SHAPE Shape {
@@ -83,11 +83,11 @@ DEF HEXAPOD Robot {
               roughness 0.5
             }
             geometry Box {
-              size 0.03 0.02 0.02
+              size 0.045 0.02 0.02
             }
           }
           Transform {
-            translation 0.015 0 0
+            translation 0.0225 0 0
             children [
               DEF COXA_VISUAL Shape {
                 appearance PBRAppearance {
@@ -95,7 +95,7 @@ DEF HEXAPOD Robot {
                   roughness 0.5
                 }
                 geometry Box {
-                  size 0.03 0.02 0.02
+                  size 0.045 0.02 0.02
                 }
               }
             ]
@@ -104,7 +104,7 @@ DEF HEXAPOD Robot {
             jointParameters HingeJointParameters {
               position 0
               axis 0 1 0
-              anchor 0.02 0 0
+              anchor 0.0395 0 0
             }
             device [
               RotationalMotor {
@@ -117,11 +117,11 @@ DEF HEXAPOD Robot {
               }
             ]
             endPoint DEF FEMUR_FR Solid {
-              translation 0.02 0 0
+              translation 0.0395 0 0
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.0423 0 0
                   children [
                     DEF FEMUR_SHAPE Shape {
                       appearance PBRAppearance {
@@ -129,7 +129,7 @@ DEF HEXAPOD Robot {
                         roughness 0.5
                       }
                       geometry Box {
-                        size 0.05 0.015 0.015
+                        size 0.0846 0.015 0.015
                       }
                     }
                   ]
@@ -138,7 +138,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.0846 0 0
                   }
                   device [
                     RotationalMotor {
@@ -151,11 +151,11 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_FR Solid {
-                    translation 0.05 0 0
+                    translation 0.0846 0 0
                     rotation 0 1 0 0
                     children [
                       DEF TIBIA_VISUAL Transform {
-                        translation 0.04 0 0
+                        translation 0.05125 0 0
                         children [
                           DEF TIBIA_SHAPE Shape {
                             appearance PBRAppearance {
@@ -163,13 +163,13 @@ DEF HEXAPOD Robot {
                               roughness 0.5
                             }
                             geometry Box {
-                              size 0.08 0.012 0.012
+                              size 0.1025 0.012 0.012
                             }
                           }
                         ]
                       }
                       DEF FOOT Transform {
-                        translation 0.08 0 0
+                        translation 0.1025 0 0
                         children [
                           Shape {
                             appearance PBRAppearance {
@@ -194,7 +194,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.0423 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]
@@ -220,7 +220,7 @@ DEF HEXAPOD Robot {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor 0.0433 0.025 0
+        anchor 0.0732 0.0423 0
       }
       device [
         RotationalMotor {
@@ -233,12 +233,12 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_FL Solid {
-        translation 0.0433 0.025 0
+        translation 0.0732 0.0423 0
         rotation 0 0 1 0.524
         children [
           USE COXA_SHAPE
           Transform {
-            translation 0.015 0 0
+            translation 0.0225 0 0
             children [
               USE COXA_VISUAL
             ]
@@ -247,7 +247,7 @@ DEF HEXAPOD Robot {
             jointParameters HingeJointParameters {
               position 0
               axis 0 1 0
-              anchor 0.02 0 0
+              anchor 0.0395 0 0
             }
             device [
               RotationalMotor {
@@ -260,11 +260,11 @@ DEF HEXAPOD Robot {
               }
             ]
             endPoint DEF FEMUR_FL Solid {
-              translation 0.02 0 0
+              translation 0.0395 0 0
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.0423 0 0
                   children [
                     USE FEMUR_SHAPE
                   ]
@@ -273,7 +273,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.0846 0 0
                   }
                   device [
                     RotationalMotor {
@@ -286,7 +286,7 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_FL Solid {
-                    translation 0.05 0 0
+                    translation 0.0846 0 0
                     rotation 0 1 0 0
                     children [
                       USE TIBIA_VISUAL
@@ -303,7 +303,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.0423 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]
@@ -329,7 +329,7 @@ DEF HEXAPOD Robot {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor 0 -0.05 0
+        anchor 0 -0.0845 0
       }
       device [
         RotationalMotor {
@@ -342,12 +342,12 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_MR Solid {
-        translation 0 -0.05 0
+        translation 0 -0.0845 0
         rotation 0 0 1 -1.571
         children [
           USE COXA_SHAPE
           Transform {
-            translation 0.015 0 0
+            translation 0.0225 0 0
             children [
               USE COXA_VISUAL
             ]
@@ -356,7 +356,7 @@ DEF HEXAPOD Robot {
             jointParameters HingeJointParameters {
               position 0
               axis 0 1 0
-              anchor 0.02 0 0
+              anchor 0.0395 0 0
             }
             device [
               RotationalMotor {
@@ -369,11 +369,11 @@ DEF HEXAPOD Robot {
               }
             ]
             endPoint DEF FEMUR_MR Solid {
-              translation 0.02 0 0
+              translation 0.0395 0 0
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.0423 0 0
                   children [
                     USE FEMUR_SHAPE
                   ]
@@ -382,7 +382,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.0846 0 0
                   }
                   device [
                     RotationalMotor {
@@ -395,7 +395,7 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_MR Solid {
-                    translation 0.05 0 0
+                    translation 0.0846 0 0
                     rotation 0 1 0 0
                     children [
                       USE TIBIA_VISUAL
@@ -412,7 +412,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.0423 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]
@@ -438,7 +438,7 @@ DEF HEXAPOD Robot {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor 0 0.05 0
+        anchor 0 0.0845 0
       }
       device [
         RotationalMotor {
@@ -451,12 +451,12 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_ML Solid {
-        translation 0 0.05 0
+        translation 0 0.0845 0
         rotation 0 0 1 1.571
         children [
           USE COXA_SHAPE
           Transform {
-            translation 0.015 0 0
+            translation 0.0225 0 0
             children [
               USE COXA_VISUAL
             ]
@@ -465,7 +465,7 @@ DEF HEXAPOD Robot {
             jointParameters HingeJointParameters {
               position 0
               axis 0 1 0
-              anchor 0.02 0 0
+              anchor 0.0395 0 0
             }
             device [
               RotationalMotor {
@@ -478,11 +478,11 @@ DEF HEXAPOD Robot {
               }
             ]
             endPoint DEF FEMUR_ML Solid {
-              translation 0.02 0 0
+              translation 0.0395 0 0
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.0423 0 0
                   children [
                     USE FEMUR_SHAPE
                   ]
@@ -491,7 +491,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.0846 0 0
                   }
                   device [
                     RotationalMotor {
@@ -504,7 +504,7 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_ML Solid {
-                    translation 0.05 0 0
+                    translation 0.0846 0 0
                     rotation 0 1 0 0
                     children [
                       USE TIBIA_VISUAL
@@ -521,7 +521,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.0423 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]
@@ -547,7 +547,7 @@ DEF HEXAPOD Robot {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor -0.0433 -0.025 0
+        anchor -0.0732 -0.0423 0
       }
       device [
         RotationalMotor {
@@ -560,12 +560,12 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_RR Solid {
-        translation -0.0433 -0.025 0
+        translation -0.0732 -0.0423 0
         rotation 0 0 1 -2.618
         children [
           USE COXA_SHAPE
           Transform {
-            translation 0.015 0 0
+            translation 0.0225 0 0
             children [
               USE COXA_VISUAL
             ]
@@ -574,7 +574,7 @@ DEF HEXAPOD Robot {
             jointParameters HingeJointParameters {
               position 0
               axis 0 1 0
-              anchor 0.02 0 0
+              anchor 0.0395 0 0
             }
             device [
               RotationalMotor {
@@ -587,11 +587,11 @@ DEF HEXAPOD Robot {
               }
             ]
             endPoint DEF FEMUR_RR Solid {
-              translation 0.02 0 0
+              translation 0.0395 0 0
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.0423 0 0
                   children [
                     USE FEMUR_SHAPE
                   ]
@@ -600,7 +600,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.0846 0 0
                   }
                   device [
                     RotationalMotor {
@@ -613,7 +613,7 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_RR Solid {
-                    translation 0.05 0 0
+                    translation 0.0846 0 0
                     rotation 0 1 0 0
                     children [
                       USE TIBIA_VISUAL
@@ -630,7 +630,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.0423 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]
@@ -656,7 +656,7 @@ DEF HEXAPOD Robot {
       jointParameters HingeJointParameters {
         position 0
         axis 0 0 1
-        anchor -0.0433 0.025 0
+        anchor -0.0732 0.0423 0
       }
       device [
         RotationalMotor {
@@ -669,12 +669,12 @@ DEF HEXAPOD Robot {
         }
       ]
       endPoint DEF COXA_RL Solid {
-        translation -0.0433 0.025 0
+        translation -0.0732 0.0423 0
         rotation 0 0 1 2.618
         children [
           USE COXA_SHAPE
           Transform {
-            translation 0.015 0 0
+            translation 0.0225 0 0
             children [
               USE COXA_VISUAL
             ]
@@ -683,7 +683,7 @@ DEF HEXAPOD Robot {
             jointParameters HingeJointParameters {
               position 0
               axis 0 1 0
-              anchor 0.02 0 0
+              anchor 0.0395 0 0
             }
             device [
               RotationalMotor {
@@ -696,11 +696,11 @@ DEF HEXAPOD Robot {
               }
             ]
             endPoint DEF FEMUR_RL Solid {
-              translation 0.02 0 0
+              translation 0.0395 0 0
               rotation 0 1 0 0
               children [
                 Transform {
-                  translation 0.025 0 0
+                  translation 0.0423 0 0
                   children [
                     USE FEMUR_SHAPE
                   ]
@@ -709,7 +709,7 @@ DEF HEXAPOD Robot {
                   jointParameters HingeJointParameters {
                     position 0
                     axis 0 1 0
-                    anchor 0.05 0 0
+                    anchor 0.0846 0 0
                   }
                   device [
                     RotationalMotor {
@@ -722,7 +722,7 @@ DEF HEXAPOD Robot {
                     }
                   ]
                   endPoint DEF TIBIA_RL Solid {
-                    translation 0.05 0 0
+                    translation 0.0846 0 0
                     rotation 0 1 0 0
                     children [
                       USE TIBIA_VISUAL
@@ -739,7 +739,7 @@ DEF HEXAPOD Robot {
               ]
               contactMaterial "body"
               boundingObject Transform {
-                translation 0.025 0 0
+                translation 0.0423 0 0
                 children [
                   USE FEMUR_SHAPE
                 ]

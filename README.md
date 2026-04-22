@@ -8,12 +8,15 @@ A hexapod robot project for ESP32 hardware with Webots simulation support. Uses 
 jareds-hexapod/
 ├── lib/
 │   ├── HexapodCore/          # Platform-independent locomotion library
-│   └── ESP32Servos/          # ESP32 servo implementation
-├── src/                      # ESP32 firmware
+│   ├── ESP32Servos/          # ESP32 GPIO servo implementation
+│   └── PCA9685Servos/        # I2C PCA9685 servo implementation
+├── src/                      # ESP32 firmware (main.cpp, web UI, DualBoardServo)
 ├── webots/                   # Webots simulation
 │   ├── worlds/               # World files
-│   ├── controllers/          # Controller code
-│   └── protos/               # Custom robot models
+│   └── controllers/          # Controller code
+├── tests/                    # Unit tests (native PlatformIO env)
+├── docs/                     # Hardware wiring and pinout docs
+├── CLAUDE.md                 # Agent context for Claude Code
 ├── platformio.ini            # PlatformIO configuration
 └── README.md
 ```
@@ -23,20 +26,12 @@ jareds-hexapod/
 ### ESP32 Build
 - ESP32 development board
 - 18× servo motors (SG90 or similar)
-- 5-6V power supply for servos
-- Connection wires
+- 2× PCA9685 PWM servo driver boards (I2C addresses 0x40 and 0x41)
+- 5-6V power supply for servos (servos require ~10A total; use separate UBEC)
+- I2C wiring: GPIO 21 (SDA), GPIO 22 (SCL)
 
-### Servo Pin Configuration
-The servos are mapped as follows (see `src/main.cpp`):
-
-| Leg | Position | Joints (Coxa/Femur/Tibia) |
-|-----|----------|---------------------------|
-| 0 | Front-Right | 13, 12, 14 |
-| 1 | Middle-Right | 27, 26, 25 |
-| 2 | Rear-Right | 33, 32, 35 |
-| 3 | Rear-Left | 34, 39, 36 |
-| 4 | Middle-Left | 4, 16, 17 |
-| 5 | Front-Left | 5, 18, 19 |
+### Servo Layout
+18 servos are organized as 6 legs × 3 joints (coxa/femur/tibia), driven over I2C via two PCA9685 boards. See [docs/hardware.md](docs/hardware.md) for the full channel map and power distribution.
 
 ## Software Requirements
 
@@ -92,38 +87,37 @@ The servos are mapped as follows (see `src/main.cpp`):
 
 ### Shared Library (`lib/HexapodCore`)
 Platform-independent hexapod control logic:
-- **`Hexapod.h/cpp`**: Main hexapod control class
-- **`ServoInterface.h`**: Abstract servo interface
-- **`Kinematics.h/cpp`**: Leg kinematics (future)
-- **`Gait.h/cpp`**: Gait patterns (future)
+- **`Hexapod.h/cpp`**: Main control class — gait state machine, IK dispatch, body pose
+- **`LegIK.h/cpp`**: 3-DOF inverse kinematics (law-of-cosines 2-link solver)
+- **`GaitMath.h`**: Stateless gait trajectory math (phase → foot delta, lift height)
+- **`ServoInterface.h`**: Abstract interface (attach/write/read/detach)
 
 ### Platform-Specific Implementations
 
-**ESP32** (`lib/ESP32Servos`):
-- Uses [ESP32Servo](https://github.com/madhephaestus/ESP32Servo) library
-- Implements `ServoInterface` for physical servos
+**ESP32** (`lib/PCA9685Servos`, `src/DualBoardServo.h`):
+- Two PCA9685 I2C boards driven via Adafruit PWM library
+- `DualBoardServo` routes 18 servo IDs across both boards
+- WiFi AP + WebSocket server for remote control
 
 **Webots** (`webots/controllers/hexapod_controller`):
-- Uses Webots Motor and PositionSensor devices
-- Implements `ServoInterface` for simulated servos
-- Shares same `Hexapod` class as ESP32
+- `WebotsServoImpl` bridges Webots Motor/PositionSensor devices to `ServoInterface`
+- Shares the same `Hexapod` class and `HexapodCore` as ESP32 firmware
 
 ## Current Features
 
-- ✅ 18-servo hexapod control (6 legs × 3 joints)
-- ✅ Hardware abstraction layer
-- ✅ ESP32 firmware with servo control
-- ✅ Webots simulation environment
-- ✅ Basic poses (stand, rest)
+- ✅ 18-servo control via dual PCA9685 I2C boards
+- ✅ 3-DOF inverse kinematics per leg (law-of-cosines solver)
+- ✅ Tripod gait (3+3 alternating groups, 50% swing duty)
+- ✅ Heading, turn rate, and stride length control
+- ✅ Body-frame foot positioning and body pose control
+- ✅ WiFi AP + WebSocket remote control (stand/walk/rest/stop/move)
+- ✅ Webots simulation (same HexapodCore, simulated servo implementation)
+- ✅ Unit tests for IK and gait math (native PlatformIO env)
 
 ## Planned Features
 
-- [ ] Inverse kinematics for leg positioning
-- [ ] Tripod gait for walking
-- [ ] Wave gait for slow walking
-- [ ] Turning and rotation
-- [ ] Remote control (Bluetooth/WiFi)
-- [ ] IMU integration for balance
+- [ ] Wave gait for slow/stable walking
+- [ ] IMU integration for balance compensation
 - [ ] Autonomous navigation
 
 ## Development Workflow

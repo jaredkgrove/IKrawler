@@ -45,20 +45,37 @@ bool WebotsServoImpl::attach(int servoId, int pin) {
 
 void WebotsServoImpl::write(int servoId, float angle) {
   if (servoId >= 0 && servoId < MAX_SERVOS && motors_[servoId] != nullptr) {
-    // Convert angle from degrees to radians and set position
-    // Note: Webots uses radians, and we need to offset by 90 degrees (π/2
-    // radians) because servos use 0-180 degrees, but Webots joints are centered
-    // at 0
-    double radians = degToRad(angle - 90.0f);
+    double radians;
+    // Joint mapping: Coxa=0, Femur=1, Tibia=2
+    int joint = servoId % 3;
+    if (joint == 2) {
+      // Tibia: IK outputs 0°=extended, 90°=right angle — matches Webots directly
+      radians = degToRad(angle);
+    } else if (joint == 1) {
+      // Femur: IK increases downward to match physical servos, but Webots
+      // Y-rotation positive = downward too... except the Webots model
+      // has the femur hinge oriented so positive rotation lifts.
+      // Invert: motor = degToRad(90 - angle)
+      radians = degToRad(90.0f - angle);
+    } else {
+      // Coxa: 90° IK = 0 rad Webots center
+      radians = degToRad(angle - 90.0f);
+    }
     motors_[servoId]->setPosition(radians);
   }
 }
 
 float WebotsServoImpl::read(int servoId) {
   if (servoId >= 0 && servoId < MAX_SERVOS && sensors_[servoId] != nullptr) {
-    // Read position in radians and convert to degrees
     double radians = sensors_[servoId]->getValue();
-    return radToDeg(radians) + 90.0f;
+    int joint = servoId % 3;
+    if (joint == 2) {
+      return radToDeg(radians);
+    } else if (joint == 1) {
+      return 90.0f - radToDeg(radians);
+    } else {
+      return radToDeg(radians) + 90.0f;
+    }
   }
   return 0.0f;
 }

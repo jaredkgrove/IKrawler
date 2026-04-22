@@ -142,7 +142,7 @@ TEST(TestStrideClamping) {
   float actualStride = hexapod.getStrideLength();
 
   // Should be clamped to maxStride_ (which is geometry-derived)
-  EXPECT_TRUE(actualStride < 0.2f); // Should be << 20cm for our leg dimensions
+  EXPECT_TRUE(actualStride <= hexapod.getMaxStride());
   EXPECT_TRUE(actualStride > 0.0f); // Should still be positive
 }
 

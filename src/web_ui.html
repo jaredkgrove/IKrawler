@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>IKrawler</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{
+  height:100%;width:100%;overflow:hidden;
+  font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
+  background:#0a0a0f;color:#e0e0e8;
+  touch-action:none;user-select:none;-webkit-user-select:none;
+}
+
+.app{
+  display:flex;flex-direction:column;height:100%;
+  background:radial-gradient(ellipse at 50% 0%,#1a1a2e 0%,#0a0a0f 70%);
+}
+
+/* ── Header ── */
+header{
+  text-align:center;padding:12px 0 4px;flex-shrink:0;
+}
+header h1{
+  font-size:1.3rem;font-weight:700;letter-spacing:2px;
+  background:linear-gradient(135deg,#00d4ff,#7b2ff7);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+.status{
+  font-size:0.7rem;margin-top:2px;color:#666;transition:color .3s;
+}
+.status.connected{color:#00e676}
+.status.connecting{color:#ffab00}
+.status.disconnected{color:#ff1744}
+
+/* ── Joystick area ── */
+.joystick-area{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  position:relative;min-height:200px;
+}
+.joystick-label{
+  position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
+  font-size:0.65rem;color:#444;letter-spacing:1px;text-transform:uppercase;
+}
+
+/* ── Info bar ── */
+.info-bar{
+  display:flex;justify-content:center;gap:24px;
+  padding:4px 0;font-size:0.7rem;color:#555;flex-shrink:0;
+}
+.info-bar span{font-variant-numeric:tabular-nums}
+
+/* ── Buttons ── */
+.buttons{
+  display:grid;grid-template-columns:repeat(5,1fr);gap:8px;
+  padding:10px 16px 20px;flex-shrink:0;
+}
+.btn{
+  padding:14px 0;border:none;border-radius:12px;cursor:pointer;
+  font-size:0.85rem;font-weight:600;letter-spacing:0.5px;
+  transition:all .15s ease;position:relative;overflow:hidden;
+}
+.btn::before{
+  content:'';position:absolute;inset:0;border-radius:12px;
+  border:1px solid rgba(255,255,255,0.08);pointer-events:none;
+}
+.btn:active{transform:scale(0.95)}
+
+.btn-stand{
+  background:linear-gradient(135deg,#1a3a1a,#0d260d);color:#4caf50;
+}
+.btn-walk{
+  background:linear-gradient(135deg,#1a2a3a,#0d1a26);color:#2196f3;
+}
+.btn-rest{
+  background:linear-gradient(135deg,#3a2a1a,#261a0d);color:#ff9800;
+}
+.btn-stop{
+  background:linear-gradient(135deg,#3a1a1a,#260d0d);color:#f44336;
+}
+
+/* ── Leg Identify Buttons ── */
+.leg-buttons{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  padding:0 16px 10px;flex-shrink:0;
+}
+.btn-leg{
+  padding:10px 0;border:none;border-radius:8px;cursor:pointer;
+  font-size:0.75rem;font-weight:600;letter-spacing:0.5px;
+  background:linear-gradient(135deg,#2a2a35,#1a1a2e);color:#aaa;
+  transition:all .15s ease;position:relative;overflow:hidden;
+}
+.btn-leg::before{
+  content:'';position:absolute;inset:0;border-radius:8px;
+  border:1px solid rgba(255,255,255,0.08);pointer-events:none;
+}
+.btn-leg:active{transform:scale(0.95);background:#334}
+
+.btn-cal{
+  background:linear-gradient(135deg,#2a1a3a,#1a0d26);color:#ba68c8;
+}
+
+/* ── Calibration Panel ── */
+.cal-panel{
+  position:fixed;inset:0;background:rgba(10,10,15,0.97);z-index:1000;
+  display:none;flex-direction:column;padding:12px;overflow-y:auto;
+  padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));
+}
+.cal-panel.open{display:flex}
+.cal-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:10px;flex-shrink:0;
+}
+.cal-header h2{
+  font-size:1rem;font-weight:600;letter-spacing:1px;color:#ba68c8;
+}
+.cal-actions{display:flex;gap:6px}
+.cal-actions button{
+  padding:6px 10px;border:none;border-radius:6px;cursor:pointer;
+  font-size:0.7rem;font-weight:600;color:#e0e0e8;
+}
+.cal-actions .cal-save{background:#1a3a1a;color:#4caf50}
+.cal-actions .cal-reset{background:#3a2a1a;color:#ff9800}
+.cal-actions .cal-close{background:#2a2a35}
+.cal-save-status{
+  font-size:0.7rem;margin-left:8px;color:#666;
+  transition:opacity .3s;opacity:0;
+}
+.cal-save-status.ok{color:#4caf50;opacity:1}
+.cal-save-status.err{color:#f44336;opacity:1}
+
+.cal-leg{
+  background:#15151f;border-radius:8px;padding:8px;margin-bottom:8px;
+}
+.cal-leg-label{
+  font-size:0.7rem;color:#888;letter-spacing:1px;margin-bottom:6px;
+  text-transform:uppercase;
+}
+.cal-joints{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.cal-joint{
+  background:#0d0d14;border-radius:6px;padding:6px;text-align:center;
+}
+.cal-joint-label{
+  font-size:0.6rem;color:#666;letter-spacing:0.5px;
+  text-transform:uppercase;margin-bottom:4px;
+}
+.cal-joint-value{
+  font-size:0.85rem;font-weight:600;color:#e0e0e8;
+  font-variant-numeric:tabular-nums;margin-bottom:4px;
+}
+.cal-joint-controls{display:flex;gap:3px;justify-content:center}
+.cal-btn{
+  width:26px;height:26px;border:none;border-radius:4px;cursor:pointer;
+  background:#2a2a35;color:#ba68c8;font-size:0.8rem;font-weight:700;
+  touch-action:manipulation;
+}
+.cal-btn:active{background:#3a3a45;transform:scale(0.9)}
+.cal-btn.big{font-size:0.7rem}
+
+/* Safe-area padding for notched phones */
+@supports(padding-bottom: env(safe-area-inset-bottom)){
+  .buttons{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>IKrawler</h1>
+    <div class="status disconnected" id="status">Disconnected</div>
+  </header>
+
+  <div class="joystick-area" id="joystick-zone">
+    <div class="joystick-label">drag to move</div>
+  </div>
+
+  <div class="info-bar">
+    <span id="info-heading">HDG 0°</span>
+    <span id="info-turn">TRN 0.00</span>
+    <span id="info-stride">STR 0.00</span>
+  </div>
+
+  <div class="leg-buttons">
+    <button class="btn btn-leg" onclick="sendAction('identify_1')">L1 (FL)</button>
+    <button class="btn btn-leg" onclick="sendAction('identify_0')">L0 (FR)</button>
+    <button class="btn btn-leg" onclick="sendAction('identify_3')">L3 (ML)</button>
+    <button class="btn btn-leg" onclick="sendAction('identify_2')">L2 (MR)</button>
+    <button class="btn btn-leg" onclick="sendAction('identify_5')">L5 (RL)</button>
+    <button class="btn btn-leg" onclick="sendAction('identify_4')">L4 (RR)</button>
+  </div>
+
+  <div class="buttons">
+    <button class="btn btn-stand" ontouchstart="" onclick="sendAction('stand')">Stand</button>
+    <button class="btn btn-walk"  ontouchstart="" onclick="sendAction('walk')">Walk</button>
+    <button class="btn btn-rest"  ontouchstart="" onclick="sendAction('rest')">Rest</button>
+    <button class="btn btn-stop"  ontouchstart="" onclick="sendAction('stop')">Stop</button>
+    <button class="btn btn-cal"   ontouchstart="" onclick="openCal()">Cal</button>
+  </div>
+</div>
+
+<!-- Calibration Panel -->
+<div class="cal-panel" id="cal-panel">
+  <div class="cal-header">
+    <h2>CALIBRATION
+      <span class="cal-save-status" id="cal-save-status"></span>
+    </h2>
+    <div class="cal-actions">
+      <button class="cal-reset" onclick="calReset()">Reset</button>
+      <button class="cal-save" onclick="calSave()">Save</button>
+      <button class="cal-close" onclick="closeCal()">Close</button>
+    </div>
+  </div>
+  <div id="cal-legs"></div>
+</div>
+
+<!-- nipplejs v0.10.2 (MIT license) — minified, embedded inline -->
+<script>
+/*!
+ * nipplejs - v0.10.2 - Minimal inline build
+ * Virtual joystick for touch devices
+ */
+(function(){
+"use strict";
+var u=Math,a=u.PI,p=function(e){return e*(a/180)},g=function(e){return e*(180/a)};
+function m(e,t){var n={};for(var i in e)n[i]=e[i];for(var i in t)n[i]=t[i];return n}
+function v(e,t){var n=e.x-t.x,i=e.y-t.y;return u.sqrt(n*n+i*i)}
+function y(e,t){var n=t.x-e.x,i=t.y-e.y,o=u.atan2(i,n);return{radian:o<0?o+2*a:o,degree:g(o<0?o+2*a:o)}}
+function b(e){return{x:e.pageX||e.clientX||0,y:e.pageY||e.clientY||0}}
+
+var D={zone:document.body,color:"rgba(255,255,255,0.15)",size:140,threshold:0.1,
+fadeTime:250,multitouch:false,maxNumberOfNipples:1,
+dataOnly:false,position:{top:"50%",left:"50%"},
+mode:"static",restJoystick:true,restOpacity:0.6,
+catchDistance:200,shape:"circle",dynamicPage:false,
+follow:false,lockX:false,lockY:false};
+
+function E(e,t,n,i){e.addEventListener(t,n,i)}
+function C(e,t,n){e.removeEventListener(t,n)}
+function T(e,t){var n=document.createElement(e);if(t)for(var i in t){var o=t[i];"string"==typeof o&&(n.style[i]=o)}return n}
+
+function N(c){c=m(D,c||{});var el,back,front,id=Date.now(),pressed=false,rid;
+var zone=typeof c.zone==="string"?document.querySelector(c.zone):c.zone;
+var ox=0,oy=0;
+
+function show(){if(!el)return;el.style.opacity=String(c.restOpacity);el.style.display="block"}
+function hide(){if(!el)return;el.style.opacity="0";setTimeout(function(){if(el)el.style.display="none"},c.fadeTime)}
+
+function build(){
+  el=T("div",{width:c.size+"px",height:c.size+"px",position:"absolute",zIndex:"999",
+    borderRadius:"50%",transition:"opacity "+c.fadeTime+"ms",opacity:String(c.restOpacity)});
+  back=T("div",{width:"100%",height:"100%",borderRadius:"50%",
+    background:"radial-gradient(circle,rgba(255,255,255,0.06) 0%,rgba(255,255,255,0.03) 100%)",
+    border:"2px solid rgba(255,255,255,0.1)",boxSizing:"border-box"});
+  front=T("div",{width:"50%",height:"50%",position:"absolute",top:"25%",left:"25%",
+    borderRadius:"50%",
+    background:"radial-gradient(circle,rgba(100,180,255,0.5) 0%,rgba(100,180,255,0.2) 100%)",
+    border:"1px solid rgba(100,180,255,0.4)",
+    boxShadow:"0 0 15px rgba(100,180,255,0.2)",
+    transition:"box-shadow .15s"});
+  el.appendChild(back);el.appendChild(front);zone.appendChild(el);
+  if(c.position){el.style.left=c.position.left;el.style.top=c.position.top;
+    el.style.marginLeft=(-c.size/2)+"px";el.style.marginTop=(-c.size/2)+"px"}
+  show()
+}
+
+function onStart(e){
+  e.preventDefault();
+  var t=e.changedTouches?e.changedTouches[0]:e;
+  var r=el.getBoundingClientRect();
+  ox=r.left+r.width/2;oy=r.top+r.height/2;
+  pressed=true;
+  front.style.boxShadow="0 0 25px rgba(100,180,255,0.5)";
+  fire("start",{})
+}
+function onMove(e){
+  if(!pressed)return;e.preventDefault();
+  var t=e.changedTouches?e.changedTouches[0]:e;
+  var px=t.pageX||t.clientX||0,py=t.pageY||t.clientY||0;
+  var dx=px-ox,dy=py-oy;
+  var dist=u.sqrt(dx*dx+dy*dy);
+  var maxR=c.size/2;
+  var force=u.min(dist/maxR,1);
+  if(dist>maxR){dx=dx/dist*maxR;dy=dy/dist*maxR}
+  var angle=u.atan2(dy,dx);
+  var deg=g(angle);if(deg<0)deg+=360;
+  front.style.transform="translate("+dx+"px,"+dy+"px)";
+  if(force>c.threshold){
+    fire("move",{angle:{radian:angle<0?angle+2*a:angle,degree:deg},
+      force:force,distance:dist,
+      vector:{x:dx/maxR,y:dy/maxR},
+      direction:calcDir(deg)})
+  }
+}
+function onEnd(e){
+  if(!pressed)return;e.preventDefault();
+  pressed=false;
+  front.style.transform="translate(0,0)";
+  front.style.boxShadow="0 0 15px rgba(100,180,255,0.2)";
+  fire("end",{})
+}
+function calcDir(d){
+  if(d>315||d<=45)return{x:"right",y:null,angle:"right"};
+  if(d>45&&d<=135)return{x:null,y:"down",angle:"down"};
+  if(d>135&&d<=225)return{x:"left",y:null,angle:"left"};
+  return{x:null,y:"up",angle:"up"}
+}
+
+var handlers={};
+function on(evt,fn){handlers[evt]=handlers[evt]||[];handlers[evt].push(fn)}
+function fire(evt,data){(handlers[evt]||[]).forEach(function(fn){fn(null,data)})}
+
+build();
+E(el,"mousedown",onStart);E(el,"touchstart",onStart,{passive:false});
+E(document,"mousemove",onMove);E(document,"touchmove",onMove,{passive:false});
+E(document,"mouseup",onEnd);E(document,"touchend",onEnd,{passive:false});
+E(document,"touchcancel",onEnd,{passive:false});
+
+return{on:on,destroy:function(){if(el&&el.parentNode)el.parentNode.removeChild(el);
+  C(document,"mousemove",onMove);C(document,"mouseup",onEnd);
+  C(document,"touchmove",onMove);C(document,"touchend",onEnd);C(document,"touchcancel",onEnd)}}
+}
+window.nipplejs={create:function(o){return N(o)}};
+})();
+</script>
+
+<script>
+(function(){
+  // ── WebSocket ──
+  var ws, reconnectTimer;
+  var statusEl = document.getElementById('status');
+  var infoH = document.getElementById('info-heading');
+  var infoT = document.getElementById('info-turn');
+  var infoS = document.getElementById('info-stride');
+
+  function connect(){
+    statusEl.textContent='Connecting…';
+    statusEl.className='status connecting';
+    ws = new WebSocket('ws://'+location.host+'/ws');
+
+    ws.onopen = function(){
+      statusEl.textContent='Connected';
+      statusEl.className='status connected';
+      clearTimeout(reconnectTimer);
+    };
+    ws.onclose = function(){
+      statusEl.textContent='Disconnected';
+      statusEl.className='status disconnected';
+      reconnectTimer = setTimeout(connect, 2000);
+    };
+    ws.onerror = function(){ws.close()};
+    ws.onmessage = function(evt){
+      try {
+        var msg = JSON.parse(evt.data);
+        if (msg.type === 'cal_state' && Array.isArray(msg.offsets)) {
+          calOffsets = msg.offsets.slice();
+          renderCalValues();
+        } else if (msg.type === 'cal_saved') {
+          showSaveStatus(msg.ok ? 'Saved' : 'Save failed', msg.ok);
+        }
+      } catch(e){}
+    };
+  }
+  connect();
+
+  function send(obj){
+    if(ws && ws.readyState===1) ws.send(JSON.stringify(obj));
+  }
+
+  // ── Action buttons ──
+  window.sendAction = function(cmd){
+    send({type:'action',cmd:cmd});
+  };
+
+  // ── Calibration ──
+  var NUM_SERVOS = 18;
+  var LEG_NAMES = ['FR','MR','RR','RL','ML','FL'];
+  var JOINT_NAMES = ['Coxa','Femur','Tibia'];
+  var calOffsets = new Array(NUM_SERVOS).fill(0);
+  var calPanel = document.getElementById('cal-panel');
+  var calLegsEl = document.getElementById('cal-legs');
+  var calSaveStatus = document.getElementById('cal-save-status');
+
+  function buildCalUI(){
+    var html = '';
+    for (var leg = 0; leg < 6; leg++){
+      html += '<div class="cal-leg"><div class="cal-leg-label">Leg '+leg+' — '+LEG_NAMES[leg]+'</div><div class="cal-joints">';
+      for (var joint = 0; joint < 3; joint++){
+        var servo = leg * 3 + joint;
+        html += '<div class="cal-joint">'
+          + '<div class="cal-joint-label">'+JOINT_NAMES[joint]+'</div>'
+          + '<div class="cal-joint-value" id="cal-val-'+servo+'">0.0°</div>'
+          + '<div class="cal-joint-controls">'
+          + '<button class="cal-btn big" ontouchstart="" onclick="calAdjust('+servo+',-5)">−5</button>'
+          + '<button class="cal-btn" ontouchstart="" onclick="calAdjust('+servo+',-1)">−</button>'
+          + '<button class="cal-btn" ontouchstart="" onclick="calAdjust('+servo+',1)">+</button>'
+          + '<button class="cal-btn big" ontouchstart="" onclick="calAdjust('+servo+',5)">+5</button>'
+          + '</div></div>';
+      }
+      html += '</div></div>';
+    }
+    calLegsEl.innerHTML = html;
+  }
+  buildCalUI();
+
+  function renderCalValues(){
+    for (var i = 0; i < NUM_SERVOS; i++){
+      var el = document.getElementById('cal-val-'+i);
+      if (el) el.textContent = calOffsets[i].toFixed(1) + '°';
+    }
+  }
+
+  function showSaveStatus(text, ok){
+    calSaveStatus.textContent = text;
+    calSaveStatus.className = 'cal-save-status ' + (ok ? 'ok' : 'err');
+    setTimeout(function(){
+      calSaveStatus.className = 'cal-save-status';
+    }, 2000);
+  }
+
+  window.openCal = function(){
+    send({type:'action',cmd:'stand'}); // ensure robot is in a visible pose
+    send({type:'cal_get'});
+    calPanel.classList.add('open');
+  };
+  window.closeCal = function(){
+    calPanel.classList.remove('open');
+  };
+  window.calAdjust = function(servo, delta){
+    var next = Math.round((calOffsets[servo] + delta) * 10) / 10;
+    if (next > 30) next = 30;
+    if (next < -30) next = -30;
+    calOffsets[servo] = next;
+    renderCalValues(); // optimistic update
+    send({type:'cal_set', servo:servo, offset:next});
+  };
+  window.calSave = function(){
+    send({type:'cal_save'});
+  };
+  window.calReset = function(){
+    send({type:'cal_reset'});
+  };
+
+  // ── Joystick ──
+  var joystick = nipplejs.create({
+    zone: document.getElementById('joystick-zone'),
+    mode: 'static',
+    position: {left:'50%', top:'50%'},
+    color: 'rgba(255,255,255,0.15)',
+    size: 150
+  });
+
+  var moveInterval = null;
+  var currentHeading = 0;
+  var currentTurn = 0;
+  var currentStride = 0;
+
+  // Map joystick angle (0°=right, 90°=down in screen coords)
+  // to robot heading (0°=forward, positive=left)
+  function joystickToRobot(angleDeg, force){
+    // nipplejs: 0°=right, 90°=down, 180°=left, 270°=up
+    // robot:    0°=forward, 90°=left, -90°=right
+    // "up" on screen (270° in nipplejs) = forward (0° robot)
+    var robotHeading = -(angleDeg - 270);
+    // Normalize to -180..180
+    while(robotHeading > 180) robotHeading -= 360;
+    while(robotHeading < -180) robotHeading += 360;
+
+    // Force → stride length (0.02 to 0.06 meters)
+    var stride = 0.02 + force * 0.04;
+
+    // Extract turn component from left/right bias
+    // If pointing mostly left/right with high force, add turn
+    var turnComponent = Math.sin(angleDeg * Math.PI / 180) * force * 0.0;
+    // Actually, use the x-component of the vector for turn
+    // We'll compute this from the raw angle
+    var rad = angleDeg * Math.PI / 180;
+    var xComp = Math.cos(rad); // positive = right in screen
+    // A rightward lean = negative turn (turn right)
+    var turn = -xComp * force * 0.5;
+
+    return {heading: Math.round(robotHeading), turn: parseFloat(turn.toFixed(2)), stride: parseFloat(stride.toFixed(3))};
+  }
+
+  joystick.on('move', function(evt, data){
+    if(!data || !data.angle) return;
+    var r = joystickToRobot(data.angle.degree, data.force);
+    currentHeading = r.heading;
+    currentTurn = r.turn;
+    currentStride = r.stride;
+
+    infoH.textContent = 'HDG ' + r.heading + '\u00B0';
+    infoT.textContent = 'TRN ' + r.turn.toFixed(2);
+    infoS.textContent = 'STR ' + r.stride.toFixed(3);
+
+    // Send move commands at ~20Hz (not on every move event)
+    if(!moveInterval){
+      sendMove();
+      moveInterval = setInterval(sendMove, 50);
+    }
+  });
+
+  joystick.on('end', function(){
+    clearInterval(moveInterval);
+    moveInterval = null;
+    currentHeading = 0; currentTurn = 0; currentStride = 0;
+    send({type:'move', heading:0, turn:0, stride:0});
+    infoH.textContent = 'HDG 0\u00B0';
+    infoT.textContent = 'TRN 0.00';
+    infoS.textContent = 'STR 0.000';
+  });
+
+  function sendMove(){
+    send({type:'move', heading:currentHeading, turn:currentTurn, stride:currentStride});
+  }
+})();
+</script>
+</body>
+</html>

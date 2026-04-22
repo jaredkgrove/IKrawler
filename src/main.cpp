@@ -1,106 +1,214 @@
-/**
- * Single Servo Test - PCA9685 Channel 0
- *
- * Sweeps a single servo back and forth on the first PCA9685 board
- * (default I2C address 0x40) to verify wiring before connecting more servos.
- *
- * Wiring:
- *   ESP32 SDA (GPIO 21) -> PCA9685 SDA
- *   ESP32 SCL (GPIO 22) -> PCA9685 SCL
- *   PCA9685 V+ -> Servo power supply (e.g. UBEC 5-6V)
- *   PCA9685 VCC -> 3.3V (logic power)
- *   PCA9685 GND -> Common ground
- */
-
-#include <Adafruit_PWMServoDriver.h>
 #include <Arduino.h>
+#include <ArduinoJson.h>
+#include <AsyncTCP.h>
+#include <ESPAsyncWebServer.h>
+#include <WiFi.h>
 #include <Wire.h>
 
-// PCA9685 at default I2C address 0x40
-Adafruit_PWMServoDriver pca = Adafruit_PWMServoDriver(0x40);
+#include "DualBoardServo.h"
+#include "Hexapod.h"
+#include "web_ui.h"
 
-// Servo pulse length limits (in microseconds)
-// Typical MG996R range: ~500us to ~2500us
-static constexpr uint16_t SERVO_MIN_US = 500;
-static constexpr uint16_t SERVO_MAX_US = 2500;
+// ── Configuration ──
+const char *AP_SSID = "IKrawler";
+const char *AP_PASS = "hexapod123";
 
-// PCA9685 settings
-static constexpr uint8_t SERVO_CHANNEL = 0;
-static constexpr uint16_t PWM_FREQ = 50; // 50 Hz for standard servos
+// ── Components ──
+DualBoardServo dualBoardServos;
+Hexapod hexapod(&dualBoardServos);
+AsyncWebServer server(80);
+AsyncWebSocket ws("/ws");
 
-// Sweep parameters
-static constexpr float SWEEP_MIN_ANGLE = 0.0f;
-static constexpr float SWEEP_MAX_ANGLE = 180.0f;
-static constexpr float SWEEP_STEP = 1.0f;
-static constexpr int SWEEP_DELAY_MS = 15;
+unsigned long lastUpdateMs = 0;
 
-// Current sweep state
-float currentAngle = SWEEP_MIN_ANGLE;
-float sweepDirection = SWEEP_STEP;
+// Leg Identification State
+int identifyLeg = -1;
+unsigned long identifyStartMs = 0;
+float identifyOriginalFemur = 0.0f;
+float identifyOriginalCoxa = 0.0f;
 
-/**
- * Convert an angle (0-180) to a PCA9685 pulse tick value.
- */
-uint16_t angleToPulseTicks(float angle) {
-  // Map angle to pulse width in microseconds
-  float pulseUs =
-      SERVO_MIN_US + (angle / 180.0f) * (SERVO_MAX_US - SERVO_MIN_US);
+// Send current calibration offsets to all connected clients.
+void broadcastCalState() {
+  JsonDocument doc;
+  doc["type"] = "cal_state";
+  JsonArray arr = doc["offsets"].to<JsonArray>();
+  for (int i = 0; i < DualBoardServo::NUM_SERVOS; i++) {
+    arr.add(dualBoardServos.getOffset(i));
+  }
+  String out;
+  serializeJson(doc, out);
+  ws.textAll(out);
+}
 
-  // Convert microseconds to PCA9685 ticks (4096 ticks per period at 50Hz =
-  // 20ms) tick = pulseUs / 20000 * 4096
-  return static_cast<uint16_t>(pulseUs / 20000.0f * 4096.0f);
+// Re-issue the last commanded angle for a single servo so the new offset
+// takes effect immediately (no need to wait for the next gait tick).
+void refreshServo(int servoId) {
+  if (servoId < 0 || servoId >= DualBoardServo::NUM_SERVOS)
+    return;
+  int leg = servoId / 3;
+  int joint = servoId % 3;
+  float current = hexapod.getServo(leg, joint);
+  hexapod.setServo(leg, joint, current);
+}
+
+void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
+               AwsEventType type, void *arg, uint8_t *data, size_t len) {
+  if (type == WS_EVT_CONNECT) {
+    Serial.printf("WebSocket client #%u connected from %s\n", client->id(),
+                  client->remoteIP().toString().c_str());
+  } else if (type == WS_EVT_DISCONNECT) {
+    Serial.printf("WebSocket client #%u disconnected\n", client->id());
+  } else if (type == WS_EVT_DATA) {
+    AwsFrameInfo *info = (AwsFrameInfo *)arg;
+    if (info->final && info->index == 0 && info->len == len &&
+        info->opcode == WS_TEXT) {
+      JsonDocument doc;
+      DeserializationError err = deserializeJson(doc, data, len);
+      if (err) {
+        Serial.printf("JSON parse failed: %s\n", err.c_str());
+        return;
+      }
+
+      const char *msgType = doc["type"];
+      if (!msgType)
+        return;
+
+      if (strcmp(msgType, "action") == 0) {
+        const char *cmd = doc["cmd"];
+        if (!cmd)
+          return;
+
+        Serial.printf("Action: %s\n", cmd);
+        if (strcmp(cmd, "stand") == 0)
+          hexapod.stand();
+        else if (strcmp(cmd, "walk") == 0)
+          hexapod.walk();
+        else if (strcmp(cmd, "rest") == 0)
+          hexapod.rest();
+        else if (strcmp(cmd, "stop") == 0)
+          hexapod.stop();
+        else if (strncmp(cmd, "identify_", 9) == 0) {
+          int leg = atoi(cmd + 9);
+          if (leg >= 0 && leg < 6) {
+            identifyLeg = leg;
+            identifyOriginalFemur = hexapod.getServo(leg, Hexapod::FEMUR);
+            identifyOriginalCoxa = hexapod.getServo(leg, Hexapod::COXA);
+
+            // Lift leg (femur -30) and swing coxa +30
+            hexapod.setServo(leg, Hexapod::FEMUR,
+                             identifyOriginalFemur - 30.0f);
+            hexapod.setServo(leg, Hexapod::COXA, identifyOriginalCoxa + 30.0f);
+
+            identifyStartMs = millis();
+          }
+        }
+      } else if (strcmp(msgType, "move") == 0) {
+        float heading = doc["heading"] | 0.0f;
+        float turn = doc["turn"] | 0.0f;
+        float stride = doc["stride"] | 0.0f;
+
+        hexapod.setHeading(heading);
+        hexapod.setTurnRate(turn);
+        hexapod.setStrideLength(stride);
+      } else if (strcmp(msgType, "cal_get") == 0) {
+        broadcastCalState();
+      } else if (strcmp(msgType, "cal_set") == 0) {
+        int servo = doc["servo"] | -1;
+        float offset = doc["offset"] | 0.0f;
+        if (servo >= 0 && servo < DualBoardServo::NUM_SERVOS) {
+          dualBoardServos.setOffset(servo, offset);
+          refreshServo(servo);
+          broadcastCalState();
+        }
+      } else if (strcmp(msgType, "cal_save") == 0) {
+        bool ok = dualBoardServos.saveOffsets();
+        JsonDocument reply;
+        reply["type"] = "cal_saved";
+        reply["ok"] = ok;
+        String out;
+        serializeJson(reply, out);
+        ws.textAll(out);
+      } else if (strcmp(msgType, "cal_reset") == 0) {
+        dualBoardServos.resetOffsets();
+        hexapod.stand(); // re-apply neutral pose with zeroed offsets
+        broadcastCalState();
+      }
+    }
+  }
 }
 
 void setup() {
   Serial.begin(115200);
   delay(1000);
-  Serial.println("==========================================");
-  Serial.println("  Single Servo Test - PCA9685 Channel 0");
-  Serial.println("==========================================");
+  Serial.println("\n\n--- IKrawler Web Controller ---");
 
-  Wire.begin(); // SDA=21, SCL=22 (ESP32 defaults)
+  // 1. Initialize servos and hexapod
+  Serial.println("Initializing servos...");
+  if (!dualBoardServos.begin()) {
+    // Probe each address directly so the operator knows which board is dead
+    // before any servo is driven blind.
+    Wire.beginTransmission(0x40);
+    bool board1Ok = (Wire.endTransmission() == 0);
+    Wire.beginTransmission(0x41);
+    bool board2Ok = (Wire.endTransmission() == 0);
+    Serial.printf("ERROR: PCA9685 init failed (0x40=%s, 0x41=%s). "
+                  "Halting before driving servos.\n",
+                  board1Ok ? "ok" : "no ACK", board2Ok ? "ok" : "no ACK");
+    while (1)
+      delay(10);
+  }
 
-  pca.begin();
-  pca.setPWMFreq(PWM_FREQ);
-  delay(10);
+  // Not used directly by our DualBoardServo adapter (it hardcodes the
+  // channels), but Hexapod.begin() requires it and sets servos to neutral.
+  int dummyPins[18] = {0};
+  hexapod.begin(dummyPins);
+  hexapod.stand();
+  Serial.println("Hexapod standing by.");
 
-  Serial.println("PCA9685 initialized at 0x40");
-  Serial.println("Starting sweep on channel 0...");
-  Serial.println();
+  // 2. Setup WiFi AP
+  Serial.printf("Starting WiFi AP: %s\n", AP_SSID);
+  WiFi.mode(WIFI_AP);
+  WiFi.setSleep(false); // prevent scanning/sleep latency
+  WiFi.softAP(AP_SSID, AP_PASS);
+  IPAddress IP = WiFi.softAPIP();
+  Serial.print("AP IP Address: ");
+  Serial.println(IP);
 
-  // Start at center position
-  currentAngle = 90.0f;
-  pca.setPWM(SERVO_CHANNEL, 0, angleToPulseTicks(currentAngle));
-  Serial.println("Moved to center (90 deg). Starting sweep in 2 seconds...");
-  delay(2000);
+  // 3. Setup Web Server
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    request->send_P(200, "text/html", web_ui_html_start);
+  });
 
-  currentAngle = SWEEP_MIN_ANGLE;
-  sweepDirection = SWEEP_STEP;
+  // 4. Setup WebSocket
+  ws.onEvent(onWsEvent);
+  server.addHandler(&ws);
+
+  server.begin();
+  Serial.println("HTTP & WebSocket server started.");
+
+  lastUpdateMs = millis();
 }
 
 void loop() {
-  // Set the servo position
-  uint16_t ticks = angleToPulseTicks(currentAngle);
-  pca.setPWM(SERVO_CHANNEL, 0, ticks);
+  // Clean up disconnected WebSocket clients
+  ws.cleanupClients();
 
-  // Print position every 10 degrees
-  if (static_cast<int>(currentAngle) % 10 == 0) {
-    Serial.printf("Angle: %6.1f°  |  Ticks: %4u\n", currentAngle, ticks);
+  // Update Hexapod kinematics
+  unsigned long now = millis();
+  float dt = (now - lastUpdateMs) / 1000.0f;
+  lastUpdateMs = now;
+
+  hexapod.update(dt);
+
+  // Safely restore identification leg
+  if (identifyLeg != -1) {
+    if (millis() - identifyStartMs > 500) {
+      hexapod.setServo(identifyLeg, Hexapod::FEMUR, identifyOriginalFemur);
+      hexapod.setServo(identifyLeg, Hexapod::COXA, identifyOriginalCoxa);
+      identifyLeg = -1;
+    }
   }
 
-  // Update angle for next iteration
-  currentAngle += sweepDirection;
-
-  // Reverse direction at limits
-  if (currentAngle >= SWEEP_MAX_ANGLE) {
-    currentAngle = SWEEP_MAX_ANGLE;
-    sweepDirection = -SWEEP_STEP;
-    Serial.println("--- Reversing (max reached) ---");
-  } else if (currentAngle <= SWEEP_MIN_ANGLE) {
-    currentAngle = SWEEP_MIN_ANGLE;
-    sweepDirection = SWEEP_STEP;
-    Serial.println("--- Reversing (min reached) ---");
-  }
-
-  delay(SWEEP_DELAY_MS);
+  // Minimal delay to prevent busy-looping and let WiFi tasks run
+  delay(5);
 }

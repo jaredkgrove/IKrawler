@@ -17,14 +17,15 @@
  */
 class Hexapod {
 public:
-  // Leg indices (matches servo numbering in .wbt file)
+  // Leg indices: clockwise from front-right (top-down view).
+  // Even IDs are the right side, odd IDs the left, alternating around the body.
   enum Leg {
     FRONT_RIGHT = 0,  // servo_0, servo_1, servo_2
-    FRONT_LEFT = 1,   // servo_3, servo_4, servo_5
-    MIDDLE_RIGHT = 2, // servo_6, servo_7, servo_8
-    MIDDLE_LEFT = 3,  // servo_9, servo_10, servo_11
-    REAR_RIGHT = 4,   // servo_12, servo_13, servo_14
-    REAR_LEFT = 5     // servo_15, servo_16, servo_17
+    MIDDLE_RIGHT = 1, // servo_3, servo_4, servo_5
+    REAR_RIGHT = 2,   // servo_6, servo_7, servo_8
+    REAR_LEFT = 3,    // servo_9, servo_10, servo_11
+    MIDDLE_LEFT = 4,  // servo_12, servo_13, servo_14
+    FRONT_LEFT = 5    // servo_15, servo_16, servo_17
   };
 
   // Joint indices within each leg
@@ -252,11 +253,20 @@ private:
   float restReach_ = 0.065f;       // Computed: legLength * 0.50
   float minHeight_ = -0.1105f;     // Computed: -legLength * 0.85
   float maxHeight_ = -0.0325f;     // Computed: -legLength * 0.25
+  // TODO: revisit whether this absolute ceiling is needed at all — the
+  // geometric stride calc with SAFETY_MARGIN should already bound things.
+  float absoluteMaxStride_ = 0.15f; // Computed: legLength * 1.5
 
   // Standing pose (used as reference for gait)
   static constexpr float STAND_COXA = 90.0f;
   static constexpr float STAND_FEMUR = 75.0f;
   static constexpr float STAND_TIBIA = 165.0f;
+
+  // Body Geometry Parameters
+  static constexpr float BODY_RADIUS =
+      0.0845f; // Distance from body center to hip joint (in meters)
+  static constexpr float ABSOLUTE_STRIDE_RATIO =
+      1.5f; // absoluteMaxStride_ = legLength * this
 
   // Gait parameters
   static constexpr float MIN_STRIDE_LENGTH =
@@ -265,9 +275,9 @@ private:
   static constexpr float MAX_GAIT_SPEED = 2.0f; // Maximum gait cycles/sec
   static constexpr float LIFT_HEIGHT = 0.03f;   // Foot lift height in meters
 
-  // Tripod groups
-  static constexpr int GROUP_A[3] = {FRONT_RIGHT, MIDDLE_LEFT, REAR_RIGHT};
-  static constexpr int GROUP_B[3] = {FRONT_LEFT, MIDDLE_RIGHT, REAR_LEFT};
+  // Tripod groups: even leg IDs vs odd leg IDs (alternating around the body).
+  static constexpr int GROUP_A[3] = {FRONT_RIGHT, REAR_RIGHT, MIDDLE_LEFT};
+  static constexpr int GROUP_B[3] = {MIDDLE_RIGHT, REAR_LEFT, FRONT_LEFT};
 
   // Convert leg and joint to servo index
   int getServoIndex(int leg, int joint) const {

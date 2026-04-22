@@ -101,22 +101,29 @@ void Hexapod::initHipMounts() {
   // Hip positions and angles for symmetric radial design (60° spacing)
   // Body coordinate system: X = forward, Y = left, Z = up
   // Angles: 0 = pointing forward, positive = counterclockwise
-  // All hips at radius 0.05m from body center
+  // All hips at BODY_RADIUS from body center
+
+  // Pre-calculate trigonometric values
+  float cos30 = std::cos(LegIK::PI / 6.0f);
+  float sin30 = std::sin(LegIK::PI / 6.0f);
 
   // Front legs: angle = ±30°
-  hipMounts_[FRONT_RIGHT] =
-      HipMount(0.0433f, -0.025f, -LegIK::PI / 6.0f);                    // -30°
-  hipMounts_[FRONT_LEFT] = HipMount(0.0433f, 0.025f, LegIK::PI / 6.0f); // +30°
+  hipMounts_[FRONT_RIGHT] = HipMount(BODY_RADIUS * cos30, -BODY_RADIUS * sin30,
+                                     -LegIK::PI / 6.0f); // -30°
+  hipMounts_[FRONT_LEFT] = HipMount(BODY_RADIUS * cos30, BODY_RADIUS * sin30,
+                                    LegIK::PI / 6.0f); // +30°
 
   // Middle legs: angle = ±90°
-  hipMounts_[MIDDLE_RIGHT] = HipMount(0.0f, -0.05f, -LegIK::PI / 2.0f); // -90°
-  hipMounts_[MIDDLE_LEFT] = HipMount(0.0f, 0.05f, LegIK::PI / 2.0f);    // +90°
+  hipMounts_[MIDDLE_RIGHT] =
+      HipMount(0.0f, -BODY_RADIUS, -LegIK::PI / 2.0f); // -90°
+  hipMounts_[MIDDLE_LEFT] =
+      HipMount(0.0f, BODY_RADIUS, LegIK::PI / 2.0f); // +90°
 
   // Rear legs: angle = ±150°
-  hipMounts_[REAR_RIGHT] =
-      HipMount(-0.0433f, -0.025f, -5.0f * LegIK::PI / 6.0f); // -150°
-  hipMounts_[REAR_LEFT] =
-      HipMount(-0.0433f, 0.025f, 5.0f * LegIK::PI / 6.0f); // +150°
+  hipMounts_[REAR_RIGHT] = HipMount(-BODY_RADIUS * cos30, -BODY_RADIUS * sin30,
+                                    -5.0f * LegIK::PI / 6.0f); // -150°
+  hipMounts_[REAR_LEFT] = HipMount(-BODY_RADIUS * cos30, BODY_RADIUS * sin30,
+                                   5.0f * LegIK::PI / 6.0f); // +150°
 
   // Compute geometry-derived pose values from leg dimensions
   const LegIK::LegConfig &config = legIK_[0].getConfig();
@@ -128,6 +135,7 @@ void Hexapod::initHipMounts() {
   restReach_ = legLength * REST_REACH_RATIO;
   minHeight_ = -legLength * MIN_HEIGHT_RATIO;
   maxHeight_ = -legLength * MAX_HEIGHT_RATIO;
+  absoluteMaxStride_ = legLength * ABSOLUTE_STRIDE_RATIO;
 
   // Initialize current height to standing
   currentHeight_ = standingHeight_;
@@ -289,8 +297,10 @@ float Hexapod::getMaxStrideForHeight(float height) const {
   constexpr float SAFETY_MARGIN = 0.8f;
   float maxStride = maxStrideRaw * SAFETY_MARGIN;
 
-  // Clamp to sensible bounds
-  return Utils::clamp(maxStride, MIN_STRIDE_LENGTH, 0.15f);
+  // Clamp to sensible bounds.
+  // TODO: revisit whether absoluteMaxStride_ is needed at all — the
+  // geometric calc above with SAFETY_MARGIN should already bound things.
+  return Utils::clamp(maxStride, MIN_STRIDE_LENGTH, absoluteMaxStride_);
 }
 
 void Hexapod::updateBodyHeight(float height) {

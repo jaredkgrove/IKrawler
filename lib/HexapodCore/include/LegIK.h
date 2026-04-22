@@ -12,14 +12,19 @@ class LegIK {
 public:
   // Leg segment lengths in meters
   struct LegConfig {
+    // Default segment lengths — update these when the physical geometry changes
+    static constexpr float DEFAULT_COXA_LENGTH  = 0.0395f; // meters
+    static constexpr float DEFAULT_FEMUR_LENGTH = 0.0846f; // meters
+    static constexpr float DEFAULT_TIBIA_LENGTH = 0.1025f; // meters
+
     float coxaLength;  // Hip segment (coxa pivot to femur pivot, horizontal)
     float femurLength; // Thigh segment
     float tibiaLength; // Shin segment (to foot)
     float mountAngle;  // Hip mounting angle in radians (relative to body)
 
     LegConfig()
-        : coxaLength(0.02f), femurLength(0.050f), tibiaLength(0.080f),
-          mountAngle(0.0f) {}
+        : coxaLength(DEFAULT_COXA_LENGTH), femurLength(DEFAULT_FEMUR_LENGTH),
+          tibiaLength(DEFAULT_TIBIA_LENGTH), mountAngle(0.0f) {}
   };
 
   // Target foot position relative to hip
@@ -57,6 +62,9 @@ public:
   /**
    * @brief Get the leg configuration
    */
+#ifdef PI
+#undef PI
+#endif
   static constexpr float PI = 3.14159265359f;
   const LegConfig &getConfig() const { return config_; }
 
