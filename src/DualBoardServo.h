@@ -11,13 +11,14 @@
  * using the pin tables from hardware.md.
  *
  * Leg numbering and pin mapping:
- *   Board 1 (0x40, no jumper):  Legs 3-5 (left side: rear, middle, front)
- *   Board 2 (0x41, A0 jumper):  Legs 0-2 (right side: front, middle, rear)
+ *   Board 1 (0x40, no jumper):  Legs 0-2 (right side: front, middle, rear)
+ *   Board 2 (0x41, A0 jumper):  Legs 3-5 (left side: rear, middle, front)
  *
  *   Each leg uses 3 channels within a PCA9685 4-pin bank: [coxa, femur, tibia]
- *   Front legs (0, 5): channels 0, 1, 2   (bank 0-3)
- *   Middle legs (1, 4): channels 4, 5, 6  (bank 4-7)
- *   Rear legs (2, 3):   channels 8, 9, 10 (bank 8-11)
+ *   Board 1 is mounted rotated 180° from board 2, so its front/rear banks
+ *   are flipped relative to board 2:
+ *     Board 1 (right):  FR=bank 8-11, MR=bank 4-7,  RR=bank 0-3
+ *     Board 2 (left):   FL=bank 0-3,  ML=bank 4-7,  RL=bank 8-11
  *
  * Per-servo neutral-position offsets (degrees) compensate for mechanical
  * mounting imperfections. They are added to the commanded angle before
@@ -54,7 +55,7 @@ private:
   };
   Resolved resolve(int servoId) const;
 
-  PCA9685ServoImpl board1_; // 0x40 (no jumper), drives left-side legs
-  PCA9685ServoImpl board2_; // 0x41 (A0 jumper),  drives right-side legs
+  PCA9685ServoImpl board1_; // 0x40 (no jumper), drives right-side legs
+  PCA9685ServoImpl board2_; // 0x41 (A0 jumper),  drives left-side legs
   float offsets_[NUM_SERVOS];
 };

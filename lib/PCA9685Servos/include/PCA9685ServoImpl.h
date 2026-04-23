@@ -18,10 +18,10 @@ public:
    * @brief Construct a new PCA9685 Servo Impl object
    *
    * @param address I2C address of the PCA9685 board (default 0x40)
-   * @param sdaPin SDA pin for I2C (default 21 for ESP32)
-   * @param sclPin SCL pin for I2C (default 22 for ESP32)
+   * @param sdaPin SDA pin for I2C (default 8 for ESP32-S3)
+   * @param sclPin SCL pin for I2C (default 9 for ESP32-S3)
    */
-  PCA9685ServoImpl(uint8_t address = 0x40, int sdaPin = 21, int sclPin = 22);
+  PCA9685ServoImpl(uint8_t address = 0x40, int sdaPin = 8, int sclPin = 9);
   ~PCA9685ServoImpl() override = default;
 
   /**

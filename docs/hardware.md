@@ -13,10 +13,22 @@
 
 Leg IDs follow the firmware convention: clockwise from front-right (top-down view).
 
-Both boards are wired identically: one PCA9685 4-pin bank per leg, front-to-back.
-Channels 3, 7, 11 are spare (one per bank); bank 12–15 is entirely free.
+Each leg occupies one PCA9685 4-pin bank. Channels 3, 7, 11 are spare (one per
+bank); bank 12–15 is entirely free.
+
+Board 1 (right side) is mounted rotated 180° from board 2, so its front/rear
+bank assignments are flipped. Middle banks line up the same on both boards.
 
 ### Board 1 — Address 0x40 (no jumpers)
+Controls right-side legs (IDs 0–2).
+
+| Leg ID | Position     | Bank | Coxa | Femur | Tibia |
+|--------|--------------|------|------|-------|-------|
+| 2      | REAR_RIGHT   | 0-3  | 0    | 1     | 2     |
+| 1      | MIDDLE_RIGHT | 4-7  | 4    | 5     | 6     |
+| 0      | FRONT_RIGHT  | 8-11 | 8    | 9     | 10    |
+
+### Board 2 — Address 0x41 (A0 jumper soldered)
 Controls left-side legs (IDs 3–5).
 
 | Leg ID | Position     | Bank | Coxa | Femur | Tibia |
@@ -25,16 +37,7 @@ Controls left-side legs (IDs 3–5).
 | 4      | MIDDLE_LEFT  | 4-7  | 4    | 5     | 6     |
 | 3      | REAR_LEFT    | 8-11 | 8    | 9     | 10    |
 
-### Board 2 — Address 0x41 (A0 jumper soldered)
-Controls right-side legs (IDs 0–2).
-
-| Leg ID | Position     | Bank | Coxa | Femur | Tibia |
-|--------|--------------|------|------|-------|-------|
-| 0      | FRONT_RIGHT  | 0-3  | 0    | 1     | 2     |
-| 1      | MIDDLE_RIGHT | 4-7  | 4    | 5     | 6     |
-| 2      | REAR_RIGHT   | 8-11 | 8    | 9     | 10    |
-
-Femur and tibia servos are mounted opposite the IK convention, and right-side coxa servos are mirror-mounted; `DualBoardServo` inverts those angles in software (see `INVERT` table).
+All 18 servos are mounted opposite the IK convention (horn orientation is consistent across sides on this build, not mirrored). `DualBoardServo` inverts every angle in software — see the `INVERT` table.
 
 ## Power
 
@@ -45,8 +48,8 @@ Femur and tibia servos are mounted opposite the IK convention, and right-side co
 
 ## I2C Wiring
 
-- ESP32 GPIO 21 (SDA) → both PCA9685 SDA
-- ESP32 GPIO 22 (SCL) → both PCA9685 SCL
+- ESP32-S3 GPIO 8 (SDA) → both PCA9685 SDA
+- ESP32-S3 GPIO 9 (SCL) → both PCA9685 SCL
 - Pull-ups: provided on PCA9685 breakout boards
 
 ## Known Issues & Notes

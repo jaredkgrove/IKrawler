@@ -53,8 +53,8 @@ header h1{
 
 /* ── Buttons ── */
 .buttons{
-  display:grid;grid-template-columns:repeat(5,1fr);gap:8px;
-  padding:10px 16px 20px;flex-shrink:0;
+  display:grid;grid-template-columns:repeat(6,1fr);gap:6px;
+  padding:10px 12px 20px;flex-shrink:0;
 }
 .btn{
   padding:14px 0;border:none;border-radius:12px;cursor:pointer;
@@ -82,7 +82,7 @@ header h1{
 
 /* ── Leg Identify Buttons ── */
 .leg-buttons{
-  display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  display:grid;grid-template-columns:repeat(2,1fr);gap:8px;
   padding:0 16px 10px;flex-shrink:0;
 }
 .btn-leg{
@@ -100,14 +100,17 @@ header h1{
 .btn-cal{
   background:linear-gradient(135deg,#2a1a3a,#1a0d26);color:#ba68c8;
 }
+.btn-test{
+  background:linear-gradient(135deg,#1a3a3a,#0d2626);color:#26c6da;
+}
 
 /* ── Calibration Panel ── */
-.cal-panel{
+.cal-panel,.test-panel{
   position:fixed;inset:0;background:rgba(10,10,15,0.97);z-index:1000;
   display:none;flex-direction:column;padding:12px;overflow-y:auto;
   padding-bottom:calc(12px + env(safe-area-inset-bottom,0px));
 }
-.cal-panel.open{display:flex}
+.cal-panel.open,.test-panel.open{display:flex}
 .cal-header{
   display:flex;justify-content:space-between;align-items:center;
   margin-bottom:10px;flex-shrink:0;
@@ -158,6 +161,32 @@ header h1{
 .cal-btn:active{background:#3a3a45;transform:scale(0.9)}
 .cal-btn.big{font-size:0.7rem}
 
+/* ── Joint Test Panel ── */
+.test-header{
+  display:flex;justify-content:space-between;align-items:center;
+  margin-bottom:8px;flex-shrink:0;
+}
+.test-header h2{
+  font-size:1rem;font-weight:600;letter-spacing:1px;color:#26c6da;
+}
+.test-hint{
+  font-size:0.7rem;color:#666;margin-bottom:10px;line-height:1.4;
+}
+.test-leg{
+  background:#15151f;border-radius:8px;padding:8px;margin-bottom:8px;
+}
+.test-leg-label{
+  font-size:0.7rem;color:#888;letter-spacing:1px;margin-bottom:6px;
+  text-transform:uppercase;
+}
+.test-joints{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.test-joint-btn{
+  padding:12px 0;border:none;border-radius:6px;cursor:pointer;
+  font-size:0.75rem;font-weight:600;letter-spacing:0.5px;
+  background:#2a2a35;color:#26c6da;touch-action:manipulation;
+}
+.test-joint-btn:active{background:#3a3a45;transform:scale(0.95)}
+
 /* Safe-area padding for notched phones */
 @supports(padding-bottom: env(safe-area-inset-bottom)){
   .buttons{padding-bottom:calc(16px + env(safe-area-inset-bottom))}
@@ -182,12 +211,12 @@ header h1{
   </div>
 
   <div class="leg-buttons">
-    <button class="btn btn-leg" onclick="sendAction('identify_1')">L1 (FL)</button>
+    <button class="btn btn-leg" onclick="sendAction('identify_5')">L5 (FL)</button>
     <button class="btn btn-leg" onclick="sendAction('identify_0')">L0 (FR)</button>
-    <button class="btn btn-leg" onclick="sendAction('identify_3')">L3 (ML)</button>
-    <button class="btn btn-leg" onclick="sendAction('identify_2')">L2 (MR)</button>
-    <button class="btn btn-leg" onclick="sendAction('identify_5')">L5 (RL)</button>
-    <button class="btn btn-leg" onclick="sendAction('identify_4')">L4 (RR)</button>
+    <button class="btn btn-leg" onclick="sendAction('identify_4')">L4 (ML)</button>
+    <button class="btn btn-leg" onclick="sendAction('identify_1')">L1 (MR)</button>
+    <button class="btn btn-leg" onclick="sendAction('identify_3')">L3 (RL)</button>
+    <button class="btn btn-leg" onclick="sendAction('identify_2')">L2 (RR)</button>
   </div>
 
   <div class="buttons">
@@ -196,7 +225,23 @@ header h1{
     <button class="btn btn-rest"  ontouchstart="" onclick="sendAction('rest')">Rest</button>
     <button class="btn btn-stop"  ontouchstart="" onclick="sendAction('stop')">Stop</button>
     <button class="btn btn-cal"   ontouchstart="" onclick="openCal()">Cal</button>
+    <button class="btn btn-test"  ontouchstart="" onclick="openTest()">Test</button>
   </div>
+</div>
+
+<!-- Joint Test Panel -->
+<div class="test-panel" id="test-panel">
+  <div class="test-header">
+    <h2>JOINT TEST</h2>
+    <div class="cal-actions">
+      <button class="cal-close" onclick="closeTest()">Close</button>
+    </div>
+  </div>
+  <div class="test-hint">
+    Robot must be STANDING. Tap a joint to sweep it ±15°.<br>
+    Watch the leg and compare to the expected direction printed on serial.
+  </div>
+  <div id="test-legs"></div>
 </div>
 
 <!-- Calibration Panel -->
@@ -425,6 +470,36 @@ window.nipplejs={create:function(o){return N(o)}};
   };
   window.closeCal = function(){
     calPanel.classList.remove('open');
+  };
+
+  // ── Joint Test ──
+  var testPanel = document.getElementById('test-panel');
+  var testLegsEl = document.getElementById('test-legs');
+
+  function buildTestUI(){
+    var html = '';
+    for (var leg = 0; leg < 6; leg++){
+      html += '<div class="test-leg"><div class="test-leg-label">Leg '+leg+' — '+LEG_NAMES[leg]+'</div><div class="test-joints">';
+      for (var joint = 0; joint < 3; joint++){
+        html += '<button class="test-joint-btn" ontouchstart="" '
+          + 'onclick="sendTest('+leg+','+joint+')">'
+          + JOINT_NAMES[joint] + '</button>';
+      }
+      html += '</div></div>';
+    }
+    testLegsEl.innerHTML = html;
+  }
+  buildTestUI();
+
+  window.sendTest = function(leg, joint){
+    send({type:'action', cmd:'test_'+leg+'_'+joint});
+  };
+  window.openTest = function(){
+    send({type:'action',cmd:'stand'}); // required for the test to run
+    testPanel.classList.add('open');
+  };
+  window.closeTest = function(){
+    testPanel.classList.remove('open');
   };
   window.calAdjust = function(servo, delta){
     var next = Math.round((calOffsets[servo] + delta) * 10) / 10;

@@ -67,11 +67,12 @@ docs/hardware.md          # Servo wiring, PCA9685 channel map, power distributio
 ## Servo Mapping (DualBoardServo)
 
 Servo IDs 0–17 map across two PCA9685 boards (addr 0x40 and 0x41):
-- Board 1 (0x40): Legs 3–5 (left side)
-- Board 2 (0x41): Legs 0–2 (right side)
-- Both boards wired identically: one 4-pin bank per leg, front-to-back
-- Front leg → bank 0-3 (ch 0,1,2), Middle → bank 4-7 (ch 4,5,6), Rear → bank 8-11 (ch 8,9,10)
-- Joint order within each bank: coxa, femur, tibia (channels 3, 7, 11 spare)
+- Board 1 (0x40): Legs 0–2 (right side)
+- Board 2 (0x41): Legs 3–5 (left side)
+- One 4-pin bank per leg; joint order within each bank is coxa, femur, tibia (channels 3, 7, 11 spare)
+- Board 1 is mounted rotated 180° from board 2, so front/rear banks are flipped on the right side:
+  - Board 1 (right): REAR_RIGHT → bank 0-3, MIDDLE_RIGHT → bank 4-7, FRONT_RIGHT → bank 8-11
+  - Board 2 (left):  FRONT_LEFT → bank 0-3, MIDDLE_LEFT → bank 4-7, REAR_LEFT → bank 8-11
 
 ## Implemented Features
 
@@ -108,4 +109,4 @@ These apply to all changes in this repo:
 
 - Servos require 5–6V; ESP32 GPIO is 3.3V (never power servos from GPIO rails).
 - PCA9685 boards are genuine Adafruit units (I2C addresses 0x40 and 0x41).
-- I2C: GPIO 21 (SDA), GPIO 22 (SCL).
+- I2C: GPIO 8 (SDA), GPIO 9 (SCL).

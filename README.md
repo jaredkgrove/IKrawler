@@ -28,7 +28,7 @@ jareds-hexapod/
 - 18× servo motors (SG90 or similar)
 - 2× PCA9685 PWM servo driver boards (I2C addresses 0x40 and 0x41)
 - 5-6V power supply for servos (servos require ~10A total; use separate UBEC)
-- I2C wiring: GPIO 21 (SDA), GPIO 22 (SCL)
+- I2C wiring: GPIO 8 (SDA), GPIO 9 (SCL)
 
 ### Servo Layout
 18 servos are organized as 6 legs × 3 joints (coxa/femur/tibia), driven over I2C via two PCA9685 boards. See [docs/hardware.md](docs/hardware.md) for the full channel map and power distribution.

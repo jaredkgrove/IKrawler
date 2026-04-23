@@ -5,31 +5,33 @@ namespace {
 
 // PCA9685 channel assignments per leg (coxa, femur, tibia).
 // Leg IDs go clockwise from front-right: 0..2 are right-side, 3..5 left-side.
-// Each leg occupies one PCA9685 4-pin bank: front=0-3, middle=4-7, rear=8-11.
-// Both boards are wired identically (same position → same channels).
-// Right-side legs are on board 2 (A0 jumper, addr 0x41); left-side
-// legs are on board 1 (no jumper, addr 0x40). See hardware.md for details.
+// Each leg occupies one PCA9685 4-pin bank.
+// Board 1 (right side) is physically mounted rotated 180° from board 2, so its
+// front/rear bank assignments are flipped: front=8-11, middle=4-7, rear=0-3.
+// Board 2 (left side) uses the natural order: front=0-3, middle=4-7, rear=8-11.
+// Right-side legs are on board 1 (no jumper, addr 0x40); left-side
+// legs are on board 2 (A0 jumper, addr 0x41). See hardware.md for details.
 constexpr uint8_t CHANNEL_MAP[6][3] = {
-    {0, 1, 2},   // 0: FRONT_RIGHT  (Bd 2, bank 0-3)
-    {4, 5, 6},   // 1: MIDDLE_RIGHT (Bd 2, bank 4-7)
-    {8, 9, 10},  // 2: REAR_RIGHT   (Bd 2, bank 8-11)
-    {8, 9, 10},  // 3: REAR_LEFT    (Bd 1, bank 8-11)
-    {4, 5, 6},   // 4: MIDDLE_LEFT  (Bd 1, bank 4-7)
-    {0, 1, 2},   // 5: FRONT_LEFT   (Bd 1, bank 0-3)
+    {8, 9, 10},  // 0: FRONT_RIGHT  (Bd 1, bank 8-11)
+    {4, 5, 6},   // 1: MIDDLE_RIGHT (Bd 1, bank 4-7)
+    {0, 1, 2},   // 2: REAR_RIGHT   (Bd 1, bank 0-3)
+    {8, 9, 10},  // 3: REAR_LEFT    (Bd 2, bank 8-11)
+    {4, 5, 6},   // 4: MIDDLE_LEFT  (Bd 2, bank 4-7)
+    {0, 1, 2},   // 5: FRONT_LEFT   (Bd 2, bank 0-3)
 };
 
 // Per-servo inversion: when true, the angle is mirrored around 90° before
-// being sent to the PCA9685 (and reversed on read). Required because the
-// physical servo orientation differs from the IK convention:
-//   - Femur and tibia are inverted on every leg.
-//   - Coxa is inverted only on right-side legs (mirror-mounted vs left).
+// being sent to the PCA9685 (and reversed on read). Every joint is inverted
+// on every leg — the physical servo horn orientation on this build is
+// consistent across sides (not mirrored) and opposite to the IK convention.
+// Verified with the single-joint sweep test in main.cpp.
 constexpr bool INVERT[6][3] = {
-    {true,  true, true}, // 0: FRONT_RIGHT
-    {true,  true, true}, // 1: MIDDLE_RIGHT
-    {true,  true, true}, // 2: REAR_RIGHT
-    {false, true, true}, // 3: REAR_LEFT
-    {false, true, true}, // 4: MIDDLE_LEFT
-    {false, true, true}, // 5: FRONT_LEFT
+    {true, true, true}, // 0: FRONT_RIGHT
+    {true, true, true}, // 1: MIDDLE_RIGHT
+    {true, true, true}, // 2: REAR_RIGHT
+    {true, true, true}, // 3: REAR_LEFT
+    {true, true, true}, // 4: MIDDLE_LEFT
+    {true, true, true}, // 5: FRONT_LEFT
 };
 
 constexpr const char *PREF_NAMESPACE = "hexapod";
@@ -142,9 +144,9 @@ void DualBoardServo::loadOffsets() {
 DualBoardServo::Resolved DualBoardServo::resolve(int servoId) const {
   int leg = servoId / 3;
   int joint = servoId % 3;
-  // Right-side legs (0..2) are on board 2 (A0 jumper, 0x41);
-  // left-side legs (3..5) are on board 1 (no jumper, 0x40).
+  // Right-side legs (0..2) are on board 1 (no jumper, 0x40);
+  // left-side legs (3..5) are on board 2 (A0 jumper, 0x41).
   bool isRightSide = (leg < 3);
-  return {const_cast<PCA9685ServoImpl *>(isRightSide ? &board2_ : &board1_),
+  return {const_cast<PCA9685ServoImpl *>(isRightSide ? &board1_ : &board2_),
           CHANNEL_MAP[leg][joint]};
 }
