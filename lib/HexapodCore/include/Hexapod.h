@@ -271,7 +271,7 @@ private:
   // Gait parameters
   static constexpr float MIN_STRIDE_LENGTH =
       0.02f;                                    // Minimum stride (safety floor)
-  static constexpr float MIN_GAIT_SPEED = 0.5f; // Minimum gait cycles/sec
+  static constexpr float MIN_GAIT_SPEED = 0.1f; // Minimum gait cycles/sec
   static constexpr float MAX_GAIT_SPEED = 2.0f; // Maximum gait cycles/sec
   static constexpr float LIFT_HEIGHT = 0.03f;   // Foot lift height in meters
 

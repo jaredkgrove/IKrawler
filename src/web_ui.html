@@ -80,6 +80,29 @@ header h1{
   background:linear-gradient(135deg,#3a1a1a,#260d0d);color:#f44336;
 }
 
+/* ── Speed Buttons ── */
+.speed-buttons{
+  display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+  padding:0 12px 8px;flex-shrink:0;
+}
+.btn-speed{
+  padding:10px 0;border:none;border-radius:8px;cursor:pointer;
+  font-size:0.75rem;font-weight:600;letter-spacing:1px;
+  background:linear-gradient(135deg,#1f2a3a,#101822);color:#7aa7d9;
+  transition:all .15s ease;position:relative;overflow:hidden;
+  text-transform:uppercase;
+}
+.btn-speed::before{
+  content:'';position:absolute;inset:0;border-radius:8px;
+  border:1px solid rgba(255,255,255,0.08);pointer-events:none;
+}
+.btn-speed:active{transform:scale(0.95)}
+.btn-speed.active{
+  background:linear-gradient(135deg,#1a3a5a,#0d2640);color:#64b5f6;
+  box-shadow:0 0 12px rgba(100,180,255,0.25);
+}
+.btn-speed.active::before{border-color:rgba(100,180,255,0.5)}
+
 /* ── Leg Identify Buttons ── */
 .leg-buttons{
   display:grid;grid-template-columns:repeat(2,1fr);gap:8px;
@@ -208,6 +231,12 @@ header h1{
     <span id="info-heading">HDG 0°</span>
     <span id="info-turn">TRN 0.00</span>
     <span id="info-stride">STR 0.00</span>
+  </div>
+
+  <div class="speed-buttons">
+    <button class="btn-speed active" data-speed="0.25" onclick="setSpeed(0.25, this)">Slow</button>
+    <button class="btn-speed" data-speed="0.75" onclick="setSpeed(0.75, this)">Med</button>
+    <button class="btn-speed" data-speed="1.5" onclick="setSpeed(1.5, this)">Fast</button>
   </div>
 
   <div class="leg-buttons">
@@ -415,6 +444,14 @@ window.nipplejs={create:function(o){return N(o)}};
   // ── Action buttons ──
   window.sendAction = function(cmd){
     send({type:'action',cmd:cmd});
+  };
+
+  // ── Gait speed presets ──
+  window.setSpeed = function(value, btn){
+    send({type:'gait_speed', value:value});
+    var all = document.querySelectorAll('.btn-speed');
+    for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
+    if (btn) btn.classList.add('active');
   };
 
   // ── Calibration ──

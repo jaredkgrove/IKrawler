@@ -21,17 +21,17 @@ constexpr uint8_t CHANNEL_MAP[6][3] = {
 };
 
 // Per-servo inversion: when true, the angle is mirrored around 90° before
-// being sent to the PCA9685 (and reversed on read). Every joint is inverted
-// on every leg — the physical servo horn orientation on this build is
-// consistent across sides (not mirrored) and opposite to the IK convention.
-// Verified with the single-joint sweep test in main.cpp.
+// being sent to the PCA9685 (and reversed on read). On this build the coxa
+// and tibia horns are mounted opposite to the IK convention while the femur
+// horn matches it, so only coxa and tibia are inverted. Verified with the
+// single-joint sweep test in main.cpp.
 constexpr bool INVERT[6][3] = {
-    {true, true, true}, // 0: FRONT_RIGHT
-    {true, true, true}, // 1: MIDDLE_RIGHT
-    {true, true, true}, // 2: REAR_RIGHT
-    {true, true, true}, // 3: REAR_LEFT
-    {true, true, true}, // 4: MIDDLE_LEFT
-    {true, true, true}, // 5: FRONT_LEFT
+    {true, false, true}, // 0: FRONT_RIGHT
+    {true, false, true}, // 1: MIDDLE_RIGHT
+    {true, false, true}, // 2: REAR_RIGHT
+    {true, false, true}, // 3: REAR_LEFT
+    {true, false, true}, // 4: MIDDLE_LEFT
+    {true, false, true}, // 5: FRONT_LEFT
 };
 
 constexpr const char *PREF_NAMESPACE = "hexapod";

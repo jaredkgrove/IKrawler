@@ -126,7 +126,7 @@ void logSweepPhase(int phase, float target) {
                          : "expect foot swings REARWARD";
       break;
     case Hexapod::FEMUR:
-      hint = "expect thigh rotates DOWN (knee drops)";
+      hint = "expect thigh rotates UP (knee lifts)";
       break;
     case Hexapod::TIBIA:
       hint = "expect knee BENDS MORE (foot curls IN)";
@@ -139,7 +139,7 @@ void logSweepPhase(int phase, float target) {
                          : "expect foot swings FORWARD";
       break;
     case Hexapod::FEMUR:
-      hint = "expect thigh rotates UP (knee lifts)";
+      hint = "expect thigh rotates DOWN (knee drops)";
       break;
     case Hexapod::TIBIA:
       hint = "expect knee STRAIGHTENS (foot pushes OUT)";
@@ -308,6 +308,24 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
         hexapod.setHeading(heading);
         hexapod.setTurnRate(turn);
         hexapod.setStrideLength(stride);
+
+        // Auto-start/stop the gait based on commanded motion so a neutral
+        // joystick stops walking (the stride-length clamp would otherwise
+        // keep the legs cycling at MIN_STRIDE_LENGTH).
+        bool wantsMotion = stride > 0.0f || fabsf(turn) > 0.0f;
+        if (wantsMotion && currentMode != MODE_WALK) {
+          cancelIdentify();
+          cancelSweep();
+          hexapod.walk();
+          currentMode = MODE_WALK;
+        } else if (!wantsMotion && currentMode == MODE_WALK) {
+          hexapod.stop();
+          currentMode = MODE_STOPPING;
+        }
+      } else if (strcmp(msgType, "gait_speed") == 0) {
+        float value = doc["value"] | 0.0f;
+        hexapod.setGaitSpeed(value);
+        Serial.printf("Gait speed: %.2f\n", value);
       } else if (strcmp(msgType, "cal_get") == 0) {
         broadcastCalState();
       } else if (strcmp(msgType, "cal_set") == 0) {
@@ -363,6 +381,7 @@ void setup() {
   // channels), but Hexapod.begin() requires it and sets servos to neutral.
   int dummyPins[18] = {0};
   hexapod.begin(dummyPins);
+  hexapod.setGaitSpeed(0.25f);
   hexapod.stand();
   currentMode = MODE_STAND;
   Serial.println("Hexapod standing by.");
