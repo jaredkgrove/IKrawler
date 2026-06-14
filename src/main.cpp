@@ -25,7 +25,14 @@ unsigned long lastUpdateMs = 0;
 // Tracks the last user-commanded high-level state. Used to gate the
 // identify command: only safe in STAND because stand() gives known,
 // neutral joint angles and leaves the gait idle.
-enum RobotMode { MODE_NONE, MODE_STAND, MODE_WALK, MODE_REST, MODE_STOPPING };
+enum RobotMode {
+  MODE_NONE,
+  MODE_STAND,
+  MODE_WALK,
+  MODE_REST,
+  MODE_STOPPING,
+  MODE_CALIBRATE
+};
 RobotMode currentMode = MODE_NONE;
 
 // ── Leg identification ──
@@ -153,6 +160,29 @@ void logSweepPhase(int phase, float target) {
                 jointName, target, hint);
 }
 
+// Drive every servo to a known mechanical baseline for calibration. Coxa
+// and femur go to a true 90°. The tibia link has a 15° physical bend, so
+// commanding it 15° past 90° (toward the standing-tucked direction) puts
+// the femur–tibia hinge at a visual right angle to the femur — much easier
+// to eyeball than a straight-out tibia. Calibration offsets are additive,
+// so this base shift does not affect the saved per-servo offsets.
+// stand() runs first to force gaitState_ = IDLE — otherwise an active gait
+// would clobber these writes on the next update() tick.
+constexpr float NEUTRAL_TIBIA_BEND_DEG = 15.0f;
+void hexapodNeutralPose() {
+  cancelIdentify();
+  cancelSweep();
+  hexapod.stand();
+  for (int leg = 0; leg < Hexapod::NUM_LEGS; leg++) {
+    for (int joint = 0; joint < Hexapod::JOINTS_PER_LEG; joint++) {
+      float angle = (joint == Hexapod::TIBIA)
+                        ? 90.0f + NEUTRAL_TIBIA_BEND_DEG
+                        : 90.0f;
+      hexapod.setServo(leg, joint, angle);
+    }
+  }
+}
+
 // Re-issue the last commanded angle for a single servo so the new offset
 // takes effect immediately (no need to wait for the next gait tick).
 void refreshServo(int servoId) {
@@ -207,6 +237,9 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
           cancelSweep();
           hexapod.rest();
           currentMode = MODE_REST;
+        } else if (strcmp(cmd, "calibrate") == 0) {
+          hexapodNeutralPose();
+          currentMode = MODE_CALIBRATE;
         } else if (strcmp(cmd, "stop") == 0) {
           cancelIdentify();
           cancelSweep();
@@ -301,18 +334,20 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
                         sweepBaseAngle);
         }
       } else if (strcmp(msgType, "move") == 0) {
-        float heading = doc["heading"] | 0.0f;
+        // Two-stick model: left stick = body-frame translation vector
+        // (strafe, no rotation), right stick = pure rotation rate.
+        float vx = doc["vx"] | 0.0f;
+        float vy = doc["vy"] | 0.0f;
         float turn = doc["turn"] | 0.0f;
-        float stride = doc["stride"] | 0.0f;
 
-        hexapod.setHeading(heading);
+        hexapod.setVelocity(vx, vy);
         hexapod.setTurnRate(turn);
-        hexapod.setStrideLength(stride);
 
         // Auto-start/stop the gait based on commanded motion so a neutral
-        // joystick stops walking (the stride-length clamp would otherwise
-        // keep the legs cycling at MIN_STRIDE_LENGTH).
-        bool wantsMotion = stride > 0.0f || fabsf(turn) > 0.0f;
+        // joystick stops walking (the stride-length clamp inside setVelocity
+        // would otherwise keep the legs cycling at MIN_STRIDE_LENGTH).
+        bool wantsMotion =
+            (vx != 0.0f || vy != 0.0f || fabsf(turn) > 0.0f);
         if (wantsMotion && currentMode != MODE_WALK) {
           cancelIdentify();
           cancelSweep();
@@ -326,6 +361,10 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
         float value = doc["value"] | 0.0f;
         hexapod.setGaitSpeed(value);
         Serial.printf("Gait speed: %.2f\n", value);
+      } else if (strcmp(msgType, "gait_duty") == 0) {
+        float value = doc["value"] | 0.0f;
+        hexapod.setSwingDuty(value);
+        Serial.printf("Swing duty: %.2f\n", hexapod.getSwingDuty());
       } else if (strcmp(msgType, "cal_get") == 0) {
         broadcastCalState();
       } else if (strcmp(msgType, "cal_set") == 0) {
@@ -345,11 +384,9 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
         serializeJson(reply, out);
         ws.textAll(out);
       } else if (strcmp(msgType, "cal_reset") == 0) {
-        cancelIdentify();
-        cancelSweep();
         dualBoardServos.resetOffsets();
-        hexapod.stand(); // re-apply neutral pose with zeroed offsets
-        currentMode = MODE_STAND;
+        hexapodNeutralPose(); // re-apply 90° neutral with zeroed offsets
+        currentMode = MODE_CALIBRATE;
         broadcastCalState();
       }
     }

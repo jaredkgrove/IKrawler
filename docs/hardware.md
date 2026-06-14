@@ -44,7 +44,32 @@ All 18 servos are mounted opposite the IK convention (horn orientation is consis
 - **Servo power (V+):** 6V from UBEC, one UBEC per PCA9685 board
   - Each UBEC rated 10A, handling 9 servos per board
 - **Logic power (VCC):** 3.3V from ESP32
+- **ESP32 power:** fed from the servo `V+` rail (6V) through a 5V buck converter
+  into the ESP32 `5V` pin
 - **All grounds tied together** (ESP32, PCA9685s, UBECs)
+
+### ⚠️ USB back-feed hazard (and the fix)
+
+Because the ESP32 is powered from the `V+` rail via the buck, plugging in USB
+with **no battery** energizes the servos. A buck converter is not a one-way
+valve: USB 5V lands on the ESP32 `5V` pin (= the buck output) and flows
+*backward* through the buck's high-side body diode into `V+`, powering all 18
+servos off the USB port. That pushes servo current through the USB connector and
+board traces (rated for mA, not amps) and can damage the ESP32 or the host port.
+With both USB and battery connected, the two supplies also fight on the shared
+rail.
+
+**Fix:** add a Schottky diode (e.g. SS34 or 1N5819) on the **buck output**,
+anode at the buck, cathode at the ESP32 `5V` pin.
+
+- Battery on: buck → diode → ESP32 (diode drops ~0.3V, so set the buck to
+  ~5.2–5.3V to land at 5V).
+- USB only: diode is reverse-biased and blocks; servos stay limp — safe to flash.
+- Both connected: safe; the buck only outputs 5V and the diode stops any
+  back-feed into `V+`.
+
+Use a Schottky specifically (low forward drop); a silicon diode would lose
+~0.7V.
 
 ## I2C Wiring
 

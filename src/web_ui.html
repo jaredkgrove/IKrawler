@@ -36,8 +36,12 @@ header h1{
 
 /* ── Joystick area ── */
 .joystick-area{
-  flex:1;display:flex;align-items:center;justify-content:center;
+  flex:1;display:flex;
   position:relative;min-height:200px;
+}
+.joystick-half{
+  flex:1;display:flex;align-items:center;justify-content:center;
+  position:relative;
 }
 .joystick-label{
   position:absolute;bottom:12px;left:50%;transform:translateX(-50%);
@@ -83,6 +87,10 @@ header h1{
 /* ── Speed Buttons ── */
 .speed-buttons{
   display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+  padding:0 12px 8px;flex-shrink:0;
+}
+.duty-buttons{
+  display:grid;grid-template-columns:repeat(4,1fr);gap:6px;
   padding:0 12px 8px;flex-shrink:0;
 }
 .btn-speed{
@@ -223,20 +231,33 @@ header h1{
     <div class="status disconnected" id="status">Disconnected</div>
   </header>
 
-  <div class="joystick-area" id="joystick-zone">
-    <div class="joystick-label">drag to move</div>
+  <div class="joystick-area">
+    <div class="joystick-half" id="joystick-zone-left">
+      <div class="joystick-label">strafe</div>
+    </div>
+    <div class="joystick-half" id="joystick-zone-right">
+      <div class="joystick-label">rotate</div>
+    </div>
   </div>
 
   <div class="info-bar">
-    <span id="info-heading">HDG 0°</span>
+    <span id="info-vx">VX 0.000</span>
+    <span id="info-vy">VY 0.000</span>
     <span id="info-turn">TRN 0.00</span>
-    <span id="info-stride">STR 0.00</span>
   </div>
 
   <div class="speed-buttons">
+    <button class="btn-speed active" data-speed="0.25" onclick="setSpeed(0.1, this)">Extra Slow</button>
     <button class="btn-speed active" data-speed="0.25" onclick="setSpeed(0.25, this)">Slow</button>
     <button class="btn-speed" data-speed="0.75" onclick="setSpeed(0.75, this)">Med</button>
     <button class="btn-speed" data-speed="1.5" onclick="setSpeed(1.5, this)">Fast</button>
+  </div>
+
+  <div class="duty-buttons">
+    <button class="btn-speed" onclick="setDuty(0.5, this)">No Overlap</button>
+    <button class="btn-speed active" onclick="setDuty(0.45, this)">Light</button>
+    <button class="btn-speed" onclick="setDuty(0.4, this)">Med</button>
+    <button class="btn-speed" onclick="setDuty(0.35, this)">Heavy</button>
   </div>
 
   <div class="leg-buttons">
@@ -403,9 +424,9 @@ window.nipplejs={create:function(o){return N(o)}};
   // ── WebSocket ──
   var ws, reconnectTimer;
   var statusEl = document.getElementById('status');
-  var infoH = document.getElementById('info-heading');
-  var infoT = document.getElementById('info-turn');
-  var infoS = document.getElementById('info-stride');
+  var infoVx = document.getElementById('info-vx');
+  var infoVy = document.getElementById('info-vy');
+  var infoT  = document.getElementById('info-turn');
 
   function connect(){
     statusEl.textContent='Connecting…';
@@ -446,12 +467,24 @@ window.nipplejs={create:function(o){return N(o)}};
     send({type:'action',cmd:cmd});
   };
 
+  // Mark the clicked button active within its own row, clearing its siblings.
+  function setActiveInRow(btn){
+    if (!btn) return;
+    var sibs = btn.parentNode.querySelectorAll('.btn-speed');
+    for (var i = 0; i < sibs.length; i++) sibs[i].classList.remove('active');
+    btn.classList.add('active');
+  }
+
   // ── Gait speed presets ──
   window.setSpeed = function(value, btn){
     send({type:'gait_speed', value:value});
-    var all = document.querySelectorAll('.btn-speed');
-    for (var i = 0; i < all.length; i++) all[i].classList.remove('active');
-    if (btn) btn.classList.add('active');
+    setActiveInRow(btn);
+  };
+
+  // ── Swing duty presets (double-support overlap; lower = more overlap) ──
+  window.setDuty = function(value, btn){
+    send({type:'gait_duty', value:value});
+    setActiveInRow(btn);
   };
 
   // ── Calibration ──
@@ -501,7 +534,7 @@ window.nipplejs={create:function(o){return N(o)}};
   }
 
   window.openCal = function(){
-    send({type:'action',cmd:'stand'}); // ensure robot is in a visible pose
+    send({type:'action',cmd:'calibrate'}); // drive all servos to 90° neutral
     send({type:'cal_get'});
     calPanel.classList.add('open');
   };
@@ -554,77 +587,89 @@ window.nipplejs={create:function(o){return N(o)}};
   };
 
   // ── Joystick ──
-  var joystick = nipplejs.create({
-    zone: document.getElementById('joystick-zone'),
+  // Left stick: body-frame translation vector (vx forward, vy left).
+  // Right stick: pure rotation rate (only its X axis is used).
+  var MAX_VEL  = 0.06;  // meters per gait cycle at full deflection
+  var MAX_TURN = 1.0;   // turnRate range is [-1, 1]
+
+  var leftStick = nipplejs.create({
+    zone: document.getElementById('joystick-zone-left'),
     mode: 'static',
     position: {left:'50%', top:'50%'},
     color: 'rgba(255,255,255,0.15)',
-    size: 150
+    size: 140
+  });
+  var rightStick = nipplejs.create({
+    zone: document.getElementById('joystick-zone-right'),
+    mode: 'static',
+    position: {left:'50%', top:'50%'},
+    color: 'rgba(255,255,255,0.15)',
+    size: 140
   });
 
   var moveInterval = null;
-  var currentHeading = 0;
-  var currentTurn = 0;
-  var currentStride = 0;
+  var leftActive = false, rightActive = false;
+  var vx = 0, vy = 0, turn = 0;
 
-  // Map joystick angle (0°=right, 90°=down in screen coords)
-  // to robot heading (0°=forward, positive=left)
-  function joystickToRobot(angleDeg, force){
-    // nipplejs: 0°=right, 90°=down, 180°=left, 270°=up
-    // robot:    0°=forward, 90°=left, -90°=right
-    // "up" on screen (270° in nipplejs) = forward (0° robot)
-    var robotHeading = -(angleDeg - 270);
-    // Normalize to -180..180
-    while(robotHeading > 180) robotHeading -= 360;
-    while(robotHeading < -180) robotHeading += 360;
-
-    // Force → stride length (0.02 to 0.06 meters)
-    var stride = 0.02 + force * 0.04;
-
-    // Extract turn component from left/right bias
-    // If pointing mostly left/right with high force, add turn
-    var turnComponent = Math.sin(angleDeg * Math.PI / 180) * force * 0.0;
-    // Actually, use the x-component of the vector for turn
-    // We'll compute this from the raw angle
-    var rad = angleDeg * Math.PI / 180;
-    var xComp = Math.cos(rad); // positive = right in screen
-    // A rightward lean = negative turn (turn right)
-    var turn = -xComp * force * 0.5;
-
-    return {heading: Math.round(robotHeading), turn: parseFloat(turn.toFixed(2)), stride: parseFloat(stride.toFixed(3))};
+  function updateInfoBar(){
+    infoVx.textContent = 'VX ' + vx.toFixed(3);
+    infoVy.textContent = 'VY ' + vy.toFixed(3);
+    infoT.textContent  = 'TRN ' + turn.toFixed(2);
   }
 
-  joystick.on('move', function(evt, data){
-    if(!data || !data.angle) return;
-    var r = joystickToRobot(data.angle.degree, data.force);
-    currentHeading = r.heading;
-    currentTurn = r.turn;
-    currentStride = r.stride;
-
-    infoH.textContent = 'HDG ' + r.heading + '\u00B0';
-    infoT.textContent = 'TRN ' + r.turn.toFixed(2);
-    infoS.textContent = 'STR ' + r.stride.toFixed(3);
-
-    // Send move commands at ~20Hz (not on every move event)
+  function startSendLoop(){
     if(!moveInterval){
       sendMove();
       moveInterval = setInterval(sendMove, 50);
     }
-  });
-
-  joystick.on('end', function(){
+  }
+  function stopSendLoopIfIdle(){
+    if(leftActive || rightActive) return;
     clearInterval(moveInterval);
     moveInterval = null;
-    currentHeading = 0; currentTurn = 0; currentStride = 0;
-    send({type:'move', heading:0, turn:0, stride:0});
-    infoH.textContent = 'HDG 0\u00B0';
-    infoT.textContent = 'TRN 0.00';
-    infoS.textContent = 'STR 0.000';
+    vx = 0; vy = 0; turn = 0;
+    sendMove(); // final zero so the ESP32 stops the gait
+    updateInfoBar();
+  }
+
+  // nipplejs vector: x positive = stick right; y positive = stick DOWN on screen.
+  // Robot body frame: +X = forward, +Y = left.
+  // Stick up (vec.y < 0) -> forward (vx +); stick left (vec.x < 0) -> left (vy +).
+  leftStick.on('move', function(_, data){
+    if(!data || !data.vector) return;
+    leftActive = true;
+    vx = -data.vector.y * MAX_VEL;
+    vy = -data.vector.x * MAX_VEL;
+    updateInfoBar();
+    startSendLoop();
+  });
+  leftStick.on('end', function(){
+    leftActive = false;
+    vx = 0; vy = 0;
+    updateInfoBar();
+    stopSendLoopIfIdle();
+  });
+
+  // Right stick: only X matters. Stick right (vec.x > 0) = turn CW = negative
+  // turnRate (positive turnRate is CCW / left in the Hexapod convention).
+  rightStick.on('move', function(_, data){
+    if(!data || !data.vector) return;
+    rightActive = true;
+    turn = -data.vector.x * MAX_TURN;
+    updateInfoBar();
+    startSendLoop();
+  });
+  rightStick.on('end', function(){
+    rightActive = false;
+    turn = 0;
+    updateInfoBar();
+    stopSendLoopIfIdle();
   });
 
   function sendMove(){
-    send({type:'move', heading:currentHeading, turn:currentTurn, stride:currentStride});
+    send({type:'move', vx:vx, vy:vy, turn:turn});
   }
+
 })();
 </script>
 </body>

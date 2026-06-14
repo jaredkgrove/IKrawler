@@ -10,7 +10,7 @@ ifeq ($(OS),Windows_NT)
     
     # Run recipe for Windows (chains commands with &&)
     # Note: We run all tests sequentially
-    RUN_CMD = set PATH=C:\msys64\ucrt64\bin;%PATH% && test_gait.exe && test_ik.exe && test_kinematics.exe && test_integration.exe
+    RUN_CMD = set PATH=C:\msys64\ucrt64\bin;%PATH% && .\test_gait.exe && .\test_ik.exe && .\test_kinematics.exe && .\test_integration.exe
 else
     # Mac / Linux
     CXX = clang++
@@ -48,7 +48,7 @@ $(TARGET_KIN): $(SOURCES_KIN)
 $(TARGET_INT): $(SOURCES_INT)
 	$(CXX) $(CXXFLAGS) $(SOURCES_INT) -o $(TARGET_INT)
 
-run: $(TARGET_GAIT) $(TARGET_IK) $(TARGET_INT)
+run: $(TARGET_GAIT) $(TARGET_IK) $(TARGET_KIN) $(TARGET_INT)
 	$(RUN_CMD)
 
 clean:

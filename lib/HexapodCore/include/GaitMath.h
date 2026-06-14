@@ -11,14 +11,20 @@ namespace GaitMath {
 // Tolerance for floating-point comparisons
 constexpr float EPSILON = 0.001f;
 
-// Base stride length for pure rotation (when strideLength is 0)
-constexpr float ROTATION_STRIDE = 0.04f;
-
-// Turn rate to turn radius scale factor
-// turnRate=1.0 with strideLength=0.06 gives ~12cm turn radius
-constexpr float TURN_RATE_SCALE = 0.5f;
+// Angular displacement per gait cycle at turnRate = 1.0 (radians).
+// Picked to roughly match the previous pure-rotation feel at the default body
+// radius (~0.04 m arc / ~0.18 m radius).
+constexpr float MAX_ROTATION_PER_CYCLE = 0.23f;
 
 constexpr float PI = 3.14159265359f;
+
+// Fraction of the swing phase the foot is held at peak lift (the flat top of
+// the trapezoidal swing arc). The remaining time splits evenly into a rise and
+// a fall ramp, so the foot clears the ground steeply at BOTH liftoff and
+// touchdown and stays high while it translates forward — this avoids scuffing
+// carpet tops (and the resulting stance-tripod slip) without biasing one end of
+// swing over the other. Must stay in [0, 1); 0 reduces to a symmetric sine arc.
+constexpr float SWING_PLATEAU = 0.7f;
 
 /**
  * @brief Result of phase progress calculation

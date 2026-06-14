@@ -244,6 +244,14 @@ void Hexapod::setHeading(float headingDeg) {
   heading_ = headingDeg * LegIK::PI / 180.0f;
 }
 
+void Hexapod::setVelocity(float vx, float vy) {
+  float mag = std::sqrt(vx * vx + vy * vy);
+  setStrideLength(mag);
+  if (mag > 1e-4f) {
+    heading_ = std::atan2(vy, vx);
+  }
+}
+
 void Hexapod::setTurnRate(float turnRate) {
   turnRate_ = Utils::clamp(turnRate, -1.0f, 1.0f);
 }
@@ -255,6 +263,10 @@ void Hexapod::setStrideLength(float length) {
 
 void Hexapod::setGaitSpeed(float speed) {
   gaitSpeed_ = Utils::clamp(speed, MIN_GAIT_SPEED, MAX_GAIT_SPEED);
+}
+
+void Hexapod::setSwingDuty(float duty) {
+  swingDuty_ = Utils::clamp(duty, MIN_SWING_DUTY, MAX_SWING_DUTY);
 }
 
 float Hexapod::getMaxStrideForHeight(float height) const {
@@ -323,20 +335,40 @@ void Hexapod::stop() {
   }
 }
 
-void Hexapod::applyGaitToLeg(int leg, float phase) {
+void Hexapod::applyGaitToLeg(int leg, float phase, float stride,
+                              float turnRate) {
   // Calculate phase progress and lift height
   GaitMath::PhaseResult phaseResult =
-      GaitMath::calculatePhaseProgress(phase, LIFT_HEIGHT, 0.5f);
+      GaitMath::calculatePhaseProgress(phase, LIFT_HEIGHT, swingDuty_);
 
   // Calculate XY movement based on heading and turn rate
   GaitMath::FootDelta delta = GaitMath::calculateFootDelta(
-      phaseResult.strideProgress, turnRate_, heading_, strideLength_,
+      phaseResult.strideProgress, turnRate, heading_, stride,
       defaultFootPos_[leg].x, defaultFootPos_[leg].y);
 
   // Apply foot position in body frame
   setFootPositionBody(leg, defaultFootPos_[leg].x + delta.x,
                       defaultFootPos_[leg].y + delta.y,
                       defaultFootPos_[leg].z + phaseResult.liftHeight);
+}
+
+void Hexapod::computeEffectiveGaitInputs_(float &outStride,
+                                          float &outTurnRate) const {
+  // Worst-case per-leg foot displacement is |T| + |omega| * r_max.
+  // r_max is the radial distance from body center to the most-extended foot.
+  const float rMax = BODY_RADIUS + standingReach_;
+  const float rotContribution =
+      std::abs(turnRate_) * GaitMath::MAX_ROTATION_PER_CYCLE * rMax;
+  const float total = strideLength_ + rotContribution;
+
+  if (total > maxStride_ && total > 1e-6f) {
+    const float scale = maxStride_ / total;
+    outStride = strideLength_ * scale;
+    outTurnRate = turnRate_ * scale;
+  } else {
+    outStride = strideLength_;
+    outTurnRate = turnRate_;
+  }
 }
 
 void Hexapod::update(float deltaTime) {
@@ -370,13 +402,18 @@ void Hexapod::updateWalkGait() {
   float phaseA = gaitPhase_;
   float phaseB = Utils::wrapPhase(gaitPhase_ + 0.5f);
 
+  // Resolve combined-stride clamp once per tick so all six legs see the same
+  // effective gait inputs.
+  float effStride, effTurnRate;
+  computeEffectiveGaitInputs_(effStride, effTurnRate);
+
   // Apply gait to Group A legs
   for (int i = 0; i < 3; i++) {
-    applyGaitToLeg(GROUP_A[i], phaseA);
+    applyGaitToLeg(GROUP_A[i], phaseA, effStride, effTurnRate);
   }
 
   // Apply gait to Group B legs
   for (int i = 0; i < 3; i++) {
-    applyGaitToLeg(GROUP_B[i], phaseB);
+    applyGaitToLeg(GROUP_B[i], phaseB, effStride, effTurnRate);
   }
 }

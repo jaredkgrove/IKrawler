@@ -152,6 +152,18 @@ public:
   void setHeading(float headingDeg);
 
   /**
+   * @brief Set translation velocity as a body-frame vector
+   * @param vx Forward component (meters per gait cycle)
+   * @param vy Left component (meters per gait cycle)
+   *
+   * Equivalent to setStrideLength(hypot(vx,vy)) +
+   * setHeading(atan2(vy,vx) deg). A zero vector clamps stride to its minimum
+   * but preserves the previous heading, so a stick returning to center does
+   * not snap the robot's facing direction.
+   */
+  void setVelocity(float vx, float vy);
+
+  /**
    * @brief Set turn rate for rotation
    * @param turnRate Rotation rate (-1.0 to 1.0, positive=turn left)
    */
@@ -180,6 +192,23 @@ public:
    * @param speed Gait cycles per second
    */
   void setGaitSpeed(float speed);
+
+  /**
+   * @brief Set tripod swing duty (fraction of the cycle a leg is airborne)
+   * @param duty Swing fraction; clamped to [MIN_SWING_DUTY, MAX_SWING_DUTY].
+   *
+   * The two tripod groups are 180 deg out of phase, so their swing windows stay
+   * disjoint only while swing duty <= 0.5. At exactly 0.5 the tripods swap
+   * instantaneously (no overlap). Below 0.5 there is a double-support window
+   * where all six feet are down, which smooths the load transfer and reduces
+   * body bounce. Duty can never exceed 0.5 -- both tripods would be airborne.
+   */
+  void setSwingDuty(float duty);
+
+  /**
+   * @brief Get current tripod swing duty
+   */
+  float getSwingDuty() const { return swingDuty_; }
 
   /**
    * @brief Get the maximum stride length for a given body height
@@ -237,6 +266,7 @@ private:
   GaitState gaitState_ = IDLE;
   float gaitPhase_ = 0.0f; // 0.0 to 1.0, cycles through gait
   float gaitSpeed_ = 1.0f; // Cycles per second
+  float swingDuty_ = DEFAULT_SWING_DUTY; // Fraction of cycle a leg is airborne
 
   // Movement control
   float heading_ = 0.0f;  // Direction of travel in radians (0=forward)
@@ -273,7 +303,16 @@ private:
       0.02f;                                    // Minimum stride (safety floor)
   static constexpr float MIN_GAIT_SPEED = 0.1f; // Minimum gait cycles/sec
   static constexpr float MAX_GAIT_SPEED = 2.0f; // Maximum gait cycles/sec
-  static constexpr float LIFT_HEIGHT = 0.03f;   // Foot lift height in meters
+  static constexpr float LIFT_HEIGHT = 0.04f;   // Foot lift height in meters
+
+  // Tripod swing duty (fraction of the cycle a leg is airborne). The two tripod
+  // groups run 180 deg apart, so swing windows stay disjoint only while duty
+  // <= 0.5; above that both tripods lift at once. Below 0.5 yields a
+  // double-support overlap (all six feet down) that smooths the swap. Default
+  // is just under 0.5 so there is a small overlap out of the box.
+  static constexpr float MIN_SWING_DUTY = 0.35f;
+  static constexpr float MAX_SWING_DUTY = 0.5f;
+  static constexpr float DEFAULT_SWING_DUTY = 0.35f;
 
   // Tripod groups: even leg IDs vs odd leg IDs (alternating around the body).
   static constexpr int GROUP_A[3] = {FRONT_RIGHT, REAR_RIGHT, MIDDLE_LEFT};
@@ -285,7 +324,12 @@ private:
   }
 
   // Apply gait to a single leg
-  void applyGaitToLeg(int leg, float phase);
+  void applyGaitToLeg(int leg, float phase, float stride, float turnRate);
+
+  // Compute the gait inputs actually fed to the foot-delta math. Scales
+  // strideLength and turnRate together if their combined per-leg displacement
+  // would exceed maxStride_. Leaves the user-facing setpoints untouched.
+  void computeEffectiveGaitInputs_(float &outStride, float &outTurnRate) const;
 
   // Update max stride and re-clamp current stride
   void updateMaxStride_();

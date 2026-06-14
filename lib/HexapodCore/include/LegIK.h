@@ -15,7 +15,7 @@ public:
     // Default segment lengths — update these when the physical geometry changes
     static constexpr float DEFAULT_COXA_LENGTH  = 0.0395f; // meters
     static constexpr float DEFAULT_FEMUR_LENGTH = 0.0846f; // meters
-    static constexpr float DEFAULT_TIBIA_LENGTH = 0.1025f; // meters
+    static constexpr float DEFAULT_TIBIA_LENGTH = 0.1027f; // meters (pivot to foot-ball outer surface)
 
     float coxaLength;  // Hip segment (coxa pivot to femur pivot, horizontal)
     float femurLength; // Thigh segment

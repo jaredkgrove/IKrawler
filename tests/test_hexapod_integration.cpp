@@ -1,5 +1,7 @@
+#include "../lib/HexapodCore/include/GaitMath.h"
 #include "../lib/HexapodCore/include/Hexapod.h"
 #include "TestFramework.h"
+#include <cmath>
 
 // Define globals required by TestFramework
 int tests_run = 0;
@@ -168,6 +170,73 @@ TEST(TestHeightChangeReclampsStride) {
   EXPECT_TRUE(strideAfterRest < strideAtStanding);
 }
 
+TEST(TestSetVelocity) {
+  // setVelocity(vx, vy) should set strideLength to |v| (clamped) and heading
+  // to atan2(vy, vx). Zero vector should not snap heading to 0.
+  MockServo mock;
+  Hexapod hexapod(&mock);
+  int pins[18] = {0};
+  hexapod.begin(pins);
+  hexapod.stand();
+
+  // Vector forward-left at 45 deg, magnitude 0.04 m
+  float mag = 0.04f;
+  float vx = mag * std::cos(GaitMath::PI / 4.0f);
+  float vy = mag * std::sin(GaitMath::PI / 4.0f);
+  hexapod.setVelocity(vx, vy);
+
+  EXPECT_NEAR(hexapod.getStrideLength(), mag, 0.001f);
+
+  // Strafe pure-Y (heading = 90 deg) — strideLength should match magnitude.
+  hexapod.setVelocity(0.0f, 0.05f);
+  EXPECT_NEAR(hexapod.getStrideLength(), 0.05f, 0.001f);
+
+  // Strafing in pure-Y direction at progress=+0.5 should move foot in +y only.
+  hexapod.walk();
+  hexapod.setGaitSpeed(1.0f);
+  hexapod.setTurnRate(0.0f);
+  // We can't directly inspect foot pos, but we can verify stride magnitude
+  // got accepted (clamped or not).
+  EXPECT_TRUE(hexapod.getStrideLength() > 0.0f);
+
+  // Zero vector: stride should clamp to MIN_STRIDE_LENGTH (since 0 < min).
+  hexapod.setVelocity(0.0f, 0.0f);
+  EXPECT_TRUE(hexapod.getStrideLength() > 0.0f); // bounded by MIN_STRIDE_LENGTH
+}
+
+TEST(TestCombinedStrideClamp) {
+  // When user pushes both joysticks to max, the combined per-leg displacement
+  // must not exceed maxStride_. The Hexapod should scale the effective inputs
+  // down at apply time, but leave the raw setpoints alone (so a UI showing
+  // them does not snap back).
+  MockServo mock;
+  Hexapod hexapod(&mock);
+  int pins[18] = {0};
+  hexapod.begin(pins);
+  hexapod.stand();
+
+  // Push stride to max and turn rate to max simultaneously
+  float maxStride = hexapod.getMaxStride();
+  hexapod.setStrideLength(maxStride);
+  hexapod.setTurnRate(1.0f);
+
+  // Raw setpoints should remain at the user's request (not snapped down)
+  EXPECT_NEAR(hexapod.getStrideLength(), maxStride, 0.001f);
+
+  // Walking should not blow up servo angle bounds — this is the real-world
+  // smoke test that the clamp is active in the gait pipeline.
+  hexapod.walk();
+  hexapod.setGaitSpeed(1.0f);
+  for (int step = 0; step < 20; step++) {
+    hexapod.update(0.05f);
+    for (int i = 0; i < 18; i++) {
+      float angle = mock.read(i);
+      EXPECT_TRUE(angle >= 0.0f);
+      EXPECT_TRUE(angle <= 180.0f);
+    }
+  }
+}
+
 TEST(TestServoAngleBounds) {
   // Verify that servo angles stay in valid range [0, 180]
   MockServo mock;
@@ -206,6 +275,8 @@ int main() {
   TestStopSequence();
   TestStrideClamping();
   TestHeightChangeReclampsStride();
+  TestSetVelocity();
+  TestCombinedStrideClamp();
   TestServoAngleBounds();
 
   if (tests_failed == 0) {

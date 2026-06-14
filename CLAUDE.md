@@ -100,7 +100,7 @@ These apply to all changes in this repo:
 ## Key Design Invariants
 
 - All servo angles are in degrees [0, 180]; IK clamps to this range.
-- Leg segment lengths (coxa ~39.5mm, femur ~84.6mm, tibia ~102.5mm) are constants in `LegIK.h`; changing them requires re-validating reachability bounds.
+- Leg segment lengths (coxa ~39.5mm, femur ~84.6mm, tibia ~102.7mm) are constants in `LegIK.h`; changing them requires re-validating reachability bounds.
 - `Hexapod::update(deltaTime)` must be called at a consistent tick rate; the main loop targets 5ms (200Hz) on ESP32.
 - `strideLength_` must always satisfy `strideLength_ <= maxStride_`; use the stride setter to enforce this.
 - Tripod groups: GROUP_A = {FR, RR, ML} (even leg IDs), GROUP_B = {MR, RL, FL} (odd leg IDs).
