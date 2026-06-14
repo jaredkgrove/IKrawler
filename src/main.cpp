@@ -54,29 +54,6 @@ constexpr float IDENTIFY_COXA_MIN = 45.0f;
 constexpr float IDENTIFY_COXA_MAX = 135.0f;
 constexpr unsigned long IDENTIFY_DURATION_MS = 500;
 
-// ── Single-joint sweep test ──
-// Drives one joint from its current angle to +amplitude, then -amplitude,
-// then back. Used to verify per-joint inversion: the serial log prints the
-// expected physical direction for each phase; the operator watches the leg
-// and reports any joint that moved the wrong way.
-int sweepLeg = -1;
-int sweepJoint = 0;
-unsigned long sweepStartMs = 0;
-float sweepBaseAngle = 0.0f;
-int sweepLastPhase = -1;
-
-constexpr float SWEEP_AMPLITUDE_DEG = 15.0f;
-// Hard envelope that both +/- targets are clamped into. Well inside 0/180
-// so no inversion + base-angle combo can drive a servo into its stop.
-constexpr float SWEEP_ANGLE_MIN = 15.0f;
-constexpr float SWEEP_ANGLE_MAX = 175.0f;
-constexpr unsigned long SWEEP_PHASE_MS = 1500;
-constexpr unsigned long SWEEP_RETURN_MS = 500;
-constexpr unsigned long SWEEP_TOTAL_MS = 2 * SWEEP_PHASE_MS + SWEEP_RETURN_MS;
-
-const char *const SWEEP_LEG_NAMES[6] = {"FR", "MR", "RR", "RL", "ML", "FL"};
-const char *const SWEEP_JOINT_NAMES[3] = {"COXA", "FEMUR", "TIBIA"};
-
 // Send current calibration offsets to all connected clients.
 void broadcastCalState() {
   JsonDocument doc;
@@ -101,65 +78,6 @@ void cancelIdentify() {
   }
 }
 
-// Restore the joint under test to its base angle and clear sweep state.
-void cancelSweep() {
-  if (sweepLeg != -1) {
-    hexapod.setServo(sweepLeg, sweepJoint, sweepBaseAngle);
-    sweepLeg = -1;
-    sweepLastPhase = -1;
-  }
-}
-
-float clampSweepAngle(float a) {
-  if (a < SWEEP_ANGLE_MIN)
-    return SWEEP_ANGLE_MIN;
-  if (a > SWEEP_ANGLE_MAX)
-    return SWEEP_ANGLE_MAX;
-  return a;
-}
-
-// Print the expected physical direction for the current sweep phase so the
-// operator can compare against what the leg actually does.
-void logSweepPhase(int phase, float target) {
-  const char *legName = SWEEP_LEG_NAMES[sweepLeg];
-  const char *jointName = SWEEP_JOINT_NAMES[sweepJoint];
-  bool isRightSide = (sweepLeg < 3);
-  const char *hint = "";
-
-  if (phase == 0) { // +amplitude
-    switch (sweepJoint) {
-    case Hexapod::COXA:
-      hint = isRightSide ? "expect foot swings FORWARD"
-                         : "expect foot swings REARWARD";
-      break;
-    case Hexapod::FEMUR:
-      hint = "expect thigh rotates UP (knee lifts)";
-      break;
-    case Hexapod::TIBIA:
-      hint = "expect knee BENDS MORE (foot curls IN)";
-      break;
-    }
-  } else if (phase == 1) { // -amplitude
-    switch (sweepJoint) {
-    case Hexapod::COXA:
-      hint = isRightSide ? "expect foot swings REARWARD"
-                         : "expect foot swings FORWARD";
-      break;
-    case Hexapod::FEMUR:
-      hint = "expect thigh rotates DOWN (knee drops)";
-      break;
-    case Hexapod::TIBIA:
-      hint = "expect knee STRAIGHTENS (foot pushes OUT)";
-      break;
-    }
-  } else {
-    hint = "returning to neutral";
-  }
-
-  Serial.printf("[TEST] Leg %d (%s) %s -> %.1f deg (%s)\n", sweepLeg, legName,
-                jointName, target, hint);
-}
-
 // Drive every servo to a known mechanical baseline for calibration. Coxa
 // and femur go to a true 90°. The tibia link has a 15° physical bend, so
 // commanding it 15° past 90° (toward the standing-tucked direction) puts
@@ -171,7 +89,6 @@ void logSweepPhase(int phase, float target) {
 constexpr float NEUTRAL_TIBIA_BEND_DEG = 15.0f;
 void hexapodNeutralPose() {
   cancelIdentify();
-  cancelSweep();
   hexapod.stand();
   for (int leg = 0; leg < Hexapod::NUM_LEGS; leg++) {
     for (int joint = 0; joint < Hexapod::JOINTS_PER_LEG; joint++) {
@@ -224,17 +141,14 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
         Serial.printf("Action: %s\n", cmd);
         if (strcmp(cmd, "stand") == 0) {
           cancelIdentify();
-          cancelSweep();
           hexapod.stand();
           currentMode = MODE_STAND;
         } else if (strcmp(cmd, "walk") == 0) {
           cancelIdentify();
-          cancelSweep();
           hexapod.walk();
           currentMode = MODE_WALK;
         } else if (strcmp(cmd, "rest") == 0) {
           cancelIdentify();
-          cancelSweep();
           hexapod.rest();
           currentMode = MODE_REST;
         } else if (strcmp(cmd, "calibrate") == 0) {
@@ -242,7 +156,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
           currentMode = MODE_CALIBRATE;
         } else if (strcmp(cmd, "stop") == 0) {
           cancelIdentify();
-          cancelSweep();
           hexapod.stop();
           // stop() transitions through STOPPING and eventually calls stand();
           // hold the gate closed against identify until the user explicitly
@@ -256,10 +169,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
           // path for the PCA9685.
           if (identifyLeg != -1) {
             Serial.println("Identify ignored: already active");
-            return;
-          }
-          if (sweepLeg != -1) {
-            Serial.println("Identify ignored: joint test active");
             return;
           }
           // Only safe in STAND. STAND gives known, neutral joint angles
@@ -296,42 +205,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
             hexapod.setServo(leg, Hexapod::FEMUR, femurTarget);
             hexapod.setServo(leg, Hexapod::COXA, coxaTarget);
           }
-        } else if (strncmp(cmd, "test_", 5) == 0) {
-          // Format: test_<leg>_<joint>, e.g. test_0_1 = FR femur.
-          // Sweeps a single joint +amp / -amp / back so the operator can
-          // watch a known joint move and catch inverted directions.
-          if (sweepLeg != -1) {
-            Serial.println("Test ignored: already active");
-            return;
-          }
-          if (identifyLeg != -1) {
-            Serial.println("Test ignored: identify active");
-            return;
-          }
-          if (currentMode != MODE_STAND) {
-            Serial.println("Test ignored: robot not in STAND");
-            return;
-          }
-          const char *p = cmd + 5;
-          int leg = atoi(p);
-          const char *us = strchr(p, '_');
-          if (!us) {
-            Serial.println("Test ignored: malformed cmd");
-            return;
-          }
-          int joint = atoi(us + 1);
-          if (leg < 0 || leg >= 6 || joint < 0 || joint >= 3) {
-            Serial.println("Test ignored: bad leg/joint");
-            return;
-          }
-          sweepLeg = leg;
-          sweepJoint = joint;
-          sweepBaseAngle = hexapod.getServo(leg, joint);
-          sweepStartMs = millis();
-          sweepLastPhase = -1;
-          Serial.printf("[TEST] Starting Leg %d (%s) %s, base=%.1f\n", leg,
-                        SWEEP_LEG_NAMES[leg], SWEEP_JOINT_NAMES[joint],
-                        sweepBaseAngle);
         }
       } else if (strcmp(msgType, "move") == 0) {
         // Two-stick model: left stick = body-frame translation vector
@@ -350,7 +223,6 @@ void onWsEvent(AsyncWebSocket *server, AsyncWebSocketClient *client,
             (vx != 0.0f || vy != 0.0f || fabsf(turn) > 0.0f);
         if (wantsMotion && currentMode != MODE_WALK) {
           cancelIdentify();
-          cancelSweep();
           hexapod.walk();
           currentMode = MODE_WALK;
         } else if (!wantsMotion && currentMode == MODE_WALK) {
@@ -470,40 +342,6 @@ void loop() {
     } else {
       hexapod.setServo(identifyLeg, Hexapod::FEMUR, identifyTargetFemur);
       hexapod.setServo(identifyLeg, Hexapod::COXA, identifyTargetCoxa);
-    }
-  }
-
-  // Drive the single-joint sweep: step through +amp / -amp / return phases
-  // and re-assert the target each tick. Logs on phase transitions so the
-  // operator sees exactly what direction is being tested.
-  if (sweepLeg != -1) {
-    unsigned long elapsed = millis() - sweepStartMs;
-    int phase;
-    float target;
-    if (elapsed < SWEEP_PHASE_MS) {
-      phase = 0;
-      target = clampSweepAngle(sweepBaseAngle + SWEEP_AMPLITUDE_DEG);
-    } else if (elapsed < 2 * SWEEP_PHASE_MS) {
-      phase = 1;
-      target = clampSweepAngle(sweepBaseAngle - SWEEP_AMPLITUDE_DEG);
-    } else if (elapsed < SWEEP_TOTAL_MS) {
-      phase = 2;
-      target = sweepBaseAngle;
-    } else {
-      hexapod.setServo(sweepLeg, sweepJoint, sweepBaseAngle);
-      Serial.printf("[TEST] Leg %d %s complete\n", sweepLeg,
-                    SWEEP_JOINT_NAMES[sweepJoint]);
-      sweepLeg = -1;
-      sweepLastPhase = -1;
-      phase = -1;
-      target = sweepBaseAngle;
-    }
-    if (sweepLeg != -1) {
-      if (phase != sweepLastPhase) {
-        logSweepPhase(phase, target);
-        sweepLastPhase = phase;
-      }
-      hexapod.setServo(sweepLeg, sweepJoint, target);
     }
   }
 
